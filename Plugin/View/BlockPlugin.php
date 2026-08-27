@@ -24,7 +24,7 @@ class BlockPlugin
     ) {
     }
 
-    public function aroundToHtml(AbstractBlock $subject, Closure $proceed): string
+    public function aroundToHtml(AbstractBlock $subject, Closure $proceed): ?string
     {
         if (!$this->manager->isCollecting()) {
             return $proceed();
