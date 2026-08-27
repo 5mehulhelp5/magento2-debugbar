@@ -24,7 +24,14 @@ class BlockPlugin
     ) {
     }
 
-    public function aroundToHtml(AbstractBlock $subject, Closure $proceed): ?string
+    /**
+     * Magento's own AbstractBlock::toHtml() declares no return type, and some blocks rely on
+     * that to return false or null instead of a string. Matching that contract exactly, rather
+     * than guessing which falsy values are legitimate, is what keeps this plugin transparent.
+     *
+     * @return string|false|null
+     */
+    public function aroundToHtml(AbstractBlock $subject, Closure $proceed)
     {
         if (!$this->manager->isCollecting()) {
             return $proceed();
