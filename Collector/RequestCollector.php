@@ -231,7 +231,31 @@ class RequestCollector extends AbstractCollector
             // response rather than the application plus the bar.
             'response_bytes' => $this->responseBytes($response),
             'mode' => $this->mode(),
+            // Only when one was sent. The SEO section reads everything else from the page,
+            // but a script cannot read the headers of the response that loaded it, and
+            // fetching the URL again can answer from the full page cache instead.
+            ...$this->robotsHeader($response),
         ];
+    }
+
+    /**
+     * @return array{robots_header?: string}
+     */
+    private function robotsHeader(ResponseInterface $response): array
+    {
+        if (!$response instanceof HttpResponse) {
+            return [];
+        }
+
+        $header = $response->getHeader('X-Robots-Tag');
+
+        if ($header === false) {
+            return [];
+        }
+
+        // Bounded like every other string a profile keeps. It is the application's own
+        // header, not visitor input, but nothing reaches a stored file unbounded.
+        return ['robots_header' => substr(trim((string) $header->getFieldValue()), 0, 200)];
     }
 
     public function summary(): array

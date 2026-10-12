@@ -8,6 +8,7 @@ use Magento\Framework\App\Response\HttpInterface as HttpResponse;
 use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\HTTP\PhpEnvironment\Response as ReadableResponse;
 use Magento\Framework\UrlInterface;
+use Siteation\DebugBar\Model\AdminEditLink;
 use Siteation\DebugBar\Model\Config;
 
 /**
@@ -64,7 +65,8 @@ class BarInjector
     public function __construct(
         private readonly AssetUrl $assets,
         private readonly UrlInterface $url,
-        private readonly Config $config
+        private readonly Config $config,
+        private readonly AdminEditLink $adminEditLink
     ) {
     }
 
@@ -193,7 +195,7 @@ class BarInjector
             '<%s data-css="%s" data-profile-url="%s"'
             . ' data-value-policy="%s" data-sections="%s"'
             . ' data-history-url="%s" data-compare-url="%s"'
-            . ' data-editor="%s" data-editor-root="%s"></%s>'
+            . ' data-editor="%s" data-editor-root="%s" data-admin-edit="%s"></%s>'
             . '<script type="application/json" id="%s">%s</script>'
             . '<script type="module" src="%s" defer></script>',
             self::ROOT_TAG,
@@ -207,6 +209,9 @@ class BarInjector
             $this->escape($this->url->getUrl('siteation_debugbar/profile/compare', ['_secure' => true])),
             $this->escape($this->config->editor()),
             $this->escape($this->config->editorRoot()),
+            // Empty on any page that is not a product, a category or a CMS page, and on
+            // every page when the SEO section is off.
+            $this->escape($this->adminEditLink->forCurrentPage()),
             self::ROOT_TAG,
             self::DATA_ID,
             $json === false ? '{}' : $json,

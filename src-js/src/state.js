@@ -39,6 +39,8 @@ import {
   scanStores,
   stateJson,
 } from './alpine.js'
+import { outline as outlineSeo, readPage as readSeo, reveal as revealSeo } from './seo-page.js'
+import { emptyModel as emptySeo } from './seo.js'
 
 /** How often the Alpine section re-reads the page while it is the one being looked at. */
 const LIVE_INTERVAL_MS = 1000
@@ -151,6 +153,13 @@ export function debugBar() {
     magewireStates: {},
     alpineExpanded: [],
     alpineStates: {},
+    seoTab: 'overview',
+    seoSearch: '',
+    // On by default: a list of every link on a category page is the evidence, and the
+    // rows with something wrong are the answer.
+    seoProblemsOnly: true,
+    seo: emptySeo(),
+    seoError: '',
     alpineTimer: null,
     // The Alpine section reads live objects instead of a redacted profile, so it has to
     // apply the policy itself. See Model/Redactor.php for the stored half.
@@ -220,7 +229,10 @@ export function debugBar() {
       // the bar never open this section.
       this.$watch('section', (value) => {
         if (value === 'history') this.loadHistory()
+        if (value === 'seo') this.refreshSeo()
       })
+
+      this.scheduleSeo()
 
       if (this.open && this.section === 'history') this.loadHistory()
 
@@ -1343,6 +1355,85 @@ export function debugBar() {
      */
     highlightMagewire(id, on) {
       outlineMagewire(id, on)
+    },
+
+    /**
+     * Read once the page has loaded, so images have their real sizes and the sidebar count
+     * is there before the section is opened. Opening it reads again, since a page changes.
+     */
+    scheduleSeo() {
+      if (!this.collects('seo')) return
+
+      const read = () => setTimeout(() => this.refreshSeo(), 0)
+
+      if (document.readyState === 'complete') read()
+      else window.addEventListener('load', read, { once: true, passive: true })
+    },
+
+    refreshSeo() {
+      if (!this.collects('seo')) return
+
+      // The page's own profile, never the one in view: a background request recorded no
+      // header for this document.
+      const header = this.pageProfile.sections?.request?.summary?.robots_header || ''
+
+      try {
+        this.seo = readSeo(header)
+        this.seoError = ''
+      } catch (error) {
+        // One malformed attribute on the page must not take the bar down with it.
+        this.seo = emptySeo()
+        this.seoError = String((error && error.message) || error)
+      }
+    },
+
+    /**
+     * @param {string} view
+     * @param {number} index
+     * @param {boolean} on
+     */
+    highlightSeo(view, index, on) {
+      outlineSeo(view, index, on)
+    },
+
+    /**
+     * @param {string} view
+     * @param {number} index
+     */
+    revealSeo(view, index) {
+      revealSeo(view, index)
+    },
+
+    /** @returns {string} the admin redirect for what this page shows, '' when it is not known */
+    get adminEditUrl() {
+      return this.rootElement()?.dataset.adminEdit || ''
+    },
+
+    /** @returns {Array<object>} */
+    get visibleSeoImages() {
+      const items = this.seo.images?.items || []
+      const shown = this.seoProblemsOnly ? items.filter((item) => item.warnings.length > 0) : items
+
+      return search(shown, this.seoSearch, ['src', 'alt'])
+    },
+
+    /** @returns {Array<object>} */
+    get visibleSeoLinks() {
+      const items = this.seo.links?.items || []
+      const shown = this.seoProblemsOnly ? items.filter((item) => item.warnings.length > 0) : items
+
+      return search(shown, this.seoSearch, ['href', 'text'])
+    },
+
+    /**
+     * @param {string|null} alt
+     * @returns {string}
+     */
+    altLabel(alt) {
+      if (alt === null) return 'no alt'
+      if (alt === '') return 'alt=""'
+
+      return alt
     },
 
     refreshAlpine() {

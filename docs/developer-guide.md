@@ -162,6 +162,19 @@ section list, `header.js` the header used by both the dock and the sheet, `palet
 command list, `alpine.js` and `magewire.js` the two live readers, `early.js` the request
 watcher and error capture that loads in the head.
 
+`seo.js` holds the SEO checks as plain functions that take a `Document`, plus an environment
+for what only a browser can answer (is it visible, how big is it drawn, where is the first
+screen). `seo-page.js` is the live half: it reads the real document, keeps the elements it
+found out of the bar's reactive state, and draws and removes the outlines. A new check goes in
+`seo.js` with a fixture in `test/seo.test.js`.
+
+The admin edit link has a server half. `Model\AdminEditLink` names the entity from the
+storefront request's route and id parameter and points at the admin route
+`siteation_debugbar/entity/edit`. It builds that URL from configuration rather than through
+the backend URL model, whose session would otherwise start inside the storefront's.
+`Controller\Adminhtml\Entity\Edit` is a secret key public action that checks the target's own
+ACL resource and redirects through the backend URL model, which adds the key.
+
 ## MCP
 
 `bin/magento siteation:debugbar:mcp`, hand rolled JSON-RPC 2.0 over newline delimited stdio,
@@ -179,10 +192,10 @@ for out of the response rather than pushing it over.
 ```
 vendor/bin/phpcs  --standard=<pkg>/phpcs.xml.dist <pkg>
 vendor/bin/phpstan analyse -c <pkg>/phpstan.neon.dist
-vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 202 tests
+vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 219 tests
 <pkg>/dev/smoke https://your-store.test admin                  # 30 assertions over HTTP
-cd <pkg>/src-js && npm test                                    # 73, no dependency
-cd <pkg>/src-js && npm run test:browser                        # 18, needs the store up
+cd <pkg>/src-js && npm test                                    # 96, no store needed
+cd <pkg>/src-js && npm run test:browser                        # 19, needs the store up
 ```
 
 **The supported PHP range is checked separately**, because `phpstan.neon.dist` has to keep

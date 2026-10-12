@@ -28,6 +28,7 @@ function state(overrides = {}) {
     interception: {},
     alpineComponents: [],
     magewireComponents: [],
+    seo: {},
     history: [],
     ...overrides,
   }
@@ -73,6 +74,7 @@ test('counts come from the summary each section actually has', () => {
   assert.equal(countFor('blocks', state({ blocks: { unique_count: 4 } })), 4)
   assert.equal(countFor('plugins', state({ interception: { plugin_count: 7 } })), 7)
   assert.equal(countFor('alpine', state({ alpineComponents: [{}, {}] })), 2)
+  assert.equal(countFor('seo', state({ seo: { warningCount: 5 } })), 5)
   assert.equal(countFor('overview', state({ queries: { count: 12 } })), null)
 })
 

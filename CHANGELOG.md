@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- An **SEO** section, read from the live page, with five views
+  ([#4](https://github.com/Siteation/magento2-debugbar/issues/4)):
+  Overview (title, meta description, canonical, robots, hreflang, language, viewport,
+  charset, word count and quick links), Headings, Images, Links and Social.
+  Each view counts what needs a look, and the sidebar shows the total.
+
+- **Edit this page in the admin**, on product, category and CMS pages.
+  It goes through a new admin route, `siteation_debugbar/entity/edit`,
+  which checks the role for that kind of page and adds the secret key when the store uses one.
+
+- The `request` section records the `X-Robots-Tag` response header as `robots_header`
+  when one is sent, because the page cannot read its own response headers.
+
+### Changed
+
+- A store that already chose which sections to show keeps that list,
+  so the SEO section stays off there until it is added under Sections in the configuration.
+
 [Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.2.0...main
 
 ## [1.2.0] - 2026-10-11

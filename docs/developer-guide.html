@@ -168,6 +168,8 @@ npm run build         # or npm run dev, which watches the main bundle</code></pr
 <p><strong>No inline script or style.</strong> The profile travels as <code>&lt;script type=&quot;application/json&quot;&gt;</code> and everything else is an external file, so <code>Magento_Csp</code> needs no nonce and no <code>unsafe-inline</code>.</p>
 <p><strong>Only summaries are embedded</strong>, about 1.5 kB. Section payloads are fetched from <code>profile/view</code> on first open.</p>
 <p>File by file: <code>state.js</code> is the Alpine component, <code>template.js</code> the markup, <code>sections.js</code> the section list, <code>header.js</code> the header used by both the dock and the sheet, <code>palette.js</code> the command list, <code>alpine.js</code> and <code>magewire.js</code> the two live readers, <code>early.js</code> the request watcher and error capture that loads in the head.</p>
+<p><code>seo.js</code> holds the SEO checks as plain functions that take a <code>Document</code>, plus an environment for what only a browser can answer (is it visible, how big is it drawn, where is the first screen). <code>seo-page.js</code> is the live half: it reads the real document, keeps the elements it found out of the bar&#039;s reactive state, and draws and removes the outlines. A new check goes in <code>seo.js</code> with a fixture in <code>test/seo.test.js</code>.</p>
+<p>The admin edit link has a server half. <code>Model\AdminEditLink</code> names the entity from the storefront request&#039;s route and id parameter and points at the admin route <code>siteation_debugbar/entity/edit</code>. It builds that URL from configuration rather than through the backend URL model, whose session would otherwise start inside the storefront&#039;s. <code>Controller\Adminhtml\Entity\Edit</code> is a secret key public action that checks the target&#039;s own ACL resource and redirects through the backend URL model, which adds the key.</p>
 <h2 id="mcp"><a class="anchor" href="#mcp">MCP</a></h2>
 <p><code>bin/magento siteation:debugbar:mcp</code>, hand rolled JSON-RPC 2.0 over newline delimited stdio, five read only tools. It starts in about 0.2 seconds because it only reads files.</p>
 <p>Add a tool by implementing <code>Api\McpToolInterface</code> and registering it in the tools array in <code>etc/di.xml</code>. Shaping belongs in <code>Presentation\McpProfilePresenter</code>, which bounds every response by item count and byte budget and labels the payload as recorded data.</p>
@@ -175,10 +177,10 @@ npm run build         # or npm run dev, which watches the main bundle</code></pr
 <h2 id="testing"><a class="anchor" href="#testing">Testing</a></h2>
 <pre><code>vendor/bin/phpcs  --standard=&lt;pkg&gt;/phpcs.xml.dist &lt;pkg&gt;
 vendor/bin/phpstan analyse -c &lt;pkg&gt;/phpstan.neon.dist
-vendor/bin/phpunit --configuration &lt;pkg&gt;/phpunit.xml.dist      # 202 tests
+vendor/bin/phpunit --configuration &lt;pkg&gt;/phpunit.xml.dist      # 219 tests
 &lt;pkg&gt;/dev/smoke https://your-store.test admin                  # 30 assertions over HTTP
-cd &lt;pkg&gt;/src-js &amp;&amp; npm test                                    # 73, no dependency
-cd &lt;pkg&gt;/src-js &amp;&amp; npm run test:browser                        # 18, needs the store up</code></pre>
+cd &lt;pkg&gt;/src-js &amp;&amp; npm test                                    # 96, no store needed
+cd &lt;pkg&gt;/src-js &amp;&amp; npm run test:browser                        # 19, needs the store up</code></pre>
 <p><strong>The supported PHP range is checked separately</strong>, because <code>phpstan.neon.dist</code> has to keep working with the PHPStan a Magento install carries, and that one is pinned to 1.x by Magento and by rector. <code>phpstan-versions.neon.dist</code> layers the range from <code>composer.json</code> on top of it and needs PHPStan 2.1 or newer, so bring your own and run it from the Magento root, where it finds the autoloader:</p>
 <pre><code>composer global require phpstan/phpstan:^2.2
 ~/.composer/vendor/bin/phpstan analyse -c &lt;pkg&gt;/phpstan-versions.neon.dist</code></pre>

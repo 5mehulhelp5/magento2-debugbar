@@ -719,6 +719,253 @@ export const template = `
       </div>
       </template>
 
+      <template data-ndb-if="isSection('seo')">
+      <div>
+        ${subTabs('seoTab', [
+          { id: 'overview', label: 'Overview', count: 'seo.counts.overview', tone: "'warn'" },
+          { id: 'headings', label: 'Headings', count: 'seo.counts.headings', tone: "'warn'" },
+          { id: 'images', label: 'Images', count: 'seo.counts.images', tone: "'warn'" },
+          { id: 'links', label: 'Links', count: 'seo.counts.links', tone: "'warn'" },
+          { id: 'social', label: 'Social', count: 'seo.counts.social', tone: "'warn'" },
+        ])}
+
+        <p class="ndb-note" data-ndb-show="seoError">
+          Could not read this page: <span data-ndb-text="seoError"></span>
+        </p>
+
+        <div class="ndb-controls">
+          <template data-ndb-if="seoTab === 'images' || seoTab === 'links'">
+            <input class="ndb-search" type="search" data-ndb-model="seoSearch"
+                   data-ndb-bind:placeholder="seoTab === 'images' ? 'Filter by source or alt' : 'Filter by URL or text'">
+          </template>
+          <template data-ndb-if="seoTab === 'images' || seoTab === 'links'">
+            <button type="button" class="ndb-chip"
+                    data-ndb-bind:class="seoProblemsOnly && 'is-active'"
+                    data-ndb-on:click="seoProblemsOnly = !seoProblemsOnly">
+              Problems only
+            </button>
+          </template>
+          <button type="button" class="ndb-chip" data-ndb-on:click="refreshSeo()"
+                  title="Read the page again">Refresh</button>
+          <span class="ndb-dim ndb-count">Read from the page as it is now, not from the profile.</span>
+        </div>
+
+        <div data-ndb-show="seoTab === 'overview'">
+          <div class="ndb-callout is-warn" data-ndb-show="seo.overview.warnings.length > 0">
+            <template data-ndb-for="(warning, index) in seo.overview.warnings" data-ndb-bind:key="index">
+              <p data-ndb-text="warning"></p>
+            </template>
+          </div>
+
+          ${facts([
+            { label: 'Title', value: "seo.overview.title.value || 'missing'", tone: "seo.overview.title.hint ? 'warn' : 'ok'" },
+            { label: 'Title length', value: "seo.overview.title.length + ' characters'", tone: "seo.overview.title.hint ? 'warn' : 'ok'" },
+            { label: 'Meta description', value: "seo.overview.description.value || 'missing'", tone: "seo.overview.description.hint ? 'warn' : 'ok'" },
+            { label: 'Description length', value: "seo.overview.description.length + ' characters'", tone: "seo.overview.description.hint ? 'warn' : 'ok'" },
+            { label: 'Canonical', value: "seo.overview.canonical.href || 'missing'", mono: true, tone: "seo.overview.canonical.warnings.length ? 'warn' : 'ok'" },
+            { label: 'Robots meta', value: "seo.overview.robots.meta || 'none, so index and follow'", mono: true },
+            { label: 'X-Robots-Tag', value: "seo.overview.robots.header || 'not sent'", mono: true },
+            { label: 'Language', value: "seo.overview.lang.value || 'missing'", mono: true, tone: "seo.overview.lang.problem ? 'warn' : 'ok'" },
+            { label: 'Viewport', value: "seo.overview.viewport || 'missing'", mono: true, tone: "seo.overview.viewport ? 'ok' : 'warn'" },
+            { label: 'Charset', value: "seo.overview.charset.value + (seo.overview.charset.declared ? '' : ', not declared')", mono: true },
+            { label: 'Words', value: 'seo.overview.words' },
+          ])}
+
+          <template data-ndb-if="seo.overview.hreflang.items.length > 0">
+          <div class="ndb-seo-block">
+            <div class="ndb-subhead">
+              <div>
+                <h3>hreflang</h3>
+                <p>The other language versions this page says it has.</p>
+              </div>
+            </div>
+            <table class="ndb-table">
+              <thead><tr><th>Language</th><th>URL</th></tr></thead>
+              <tbody>
+                <template data-ndb-for="(alternate, index) in seo.overview.hreflang.items" data-ndb-bind:key="index">
+                  <tr>
+                    <td class="ndb-mono">
+                      <span data-ndb-text="alternate.lang"></span>
+                      <span class="ndb-tag" data-ndb-show="alternate.self">this page</span>
+                      <span class="ndb-tag is-warn" data-ndb-show="alternate.problem"
+                            data-ndb-text="alternate.problem"></span>
+                    </td>
+                    <td class="ndb-mono" data-ndb-text="alternate.href"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          </template>
+
+          <div class="ndb-subhead">
+            <div>
+              <h3>Links</h3>
+              <p>View the source with Ctrl+U, or Option+Command+U on a Mac. Browsers do not
+                let a page link to it.</p>
+            </div>
+          </div>
+          <div class="ndb-controls">
+            <template data-ndb-if="adminEditUrl">
+              <a class="ndb-chip" data-ndb-bind:href="adminEditUrl" target="_blank" rel="noopener">
+                Edit this page in the admin
+              </a>
+            </template>
+            <template data-ndb-for="(link, index) in seo.quickLinks" data-ndb-bind:key="index">
+              <a class="ndb-chip" data-ndb-bind:href="link.href" target="_blank" rel="noopener"
+                 data-ndb-text="link.label"></a>
+            </template>
+          </div>
+        </div>
+
+        <div data-ndb-show="seoTab === 'headings'">
+          <div class="ndb-callout is-warn" data-ndb-show="seo.headings.warnings.length > 0">
+            <template data-ndb-for="(warning, index) in seo.headings.warnings" data-ndb-bind:key="index">
+              <p data-ndb-text="warning"></p>
+            </template>
+          </div>
+
+          <p class="ndb-empty" data-ndb-show="seo.headings.items.length === 0">
+            No headings on this page.
+          </p>
+
+          <ol class="ndb-list ndb-seo-tree">
+            <template data-ndb-for="heading in seo.headings.items" data-ndb-bind:key="heading.index">
+              <li>
+                <button type="button" class="ndb-seo-row"
+                        data-ndb-bind:class="'is-level-' + heading.level"
+                        data-ndb-on:click="revealSeo('headings', heading.index)"
+                        data-ndb-on:mouseenter="highlightSeo('headings', heading.index, true)"
+                        data-ndb-on:mouseleave="highlightSeo('headings', heading.index, false)"
+                        data-ndb-on:focus="highlightSeo('headings', heading.index, true)"
+                        data-ndb-on:blur="highlightSeo('headings', heading.index, false)"
+                        title="Scroll to this heading">
+                  <span class="ndb-tag" data-ndb-text="'H' + heading.level"></span>
+                  <span class="ndb-seo-text" data-ndb-text="heading.text || '(empty)'"></span>
+                  <template data-ndb-for="(warning, index) in heading.warnings" data-ndb-bind:key="index">
+                    <span class="ndb-tag is-warn" data-ndb-text="warning"></span>
+                  </template>
+                </button>
+              </li>
+            </template>
+          </ol>
+        </div>
+
+        <div data-ndb-show="seoTab === 'images'">
+          <p class="ndb-dim ndb-count">
+            <span data-ndb-text="plural(seo.images.items.length, 'image', 'images')"></span>,
+            <span data-ndb-text="seo.counts.images"></span> with a problem
+          </p>
+
+          <ol class="ndb-list">
+            <template data-ndb-for="image in visibleSeoImages" data-ndb-bind:key="image.index">
+              <li>
+                <button type="button" class="ndb-seo-row"
+                        data-ndb-on:click="revealSeo('images', image.index)"
+                        data-ndb-on:mouseenter="highlightSeo('images', image.index, true)"
+                        data-ndb-on:mouseleave="highlightSeo('images', image.index, false)"
+                        data-ndb-on:focus="highlightSeo('images', image.index, true)"
+                        data-ndb-on:blur="highlightSeo('images', image.index, false)"
+                        title="Scroll to this image">
+                  <span class="ndb-seo-text">
+                    <span data-ndb-text="altLabel(image.alt)"
+                          data-ndb-bind:class="image.alt ? '' : 'ndb-dim'"></span>
+                    <small class="ndb-dim ndb-mono ndb-block ndb-truncate" data-ndb-text="image.src"></small>
+                    <small class="ndb-dim ndb-block" data-ndb-show="image.size" data-ndb-text="image.size"></small>
+                  </span>
+                  <template data-ndb-for="(warning, index) in image.warnings" data-ndb-bind:key="index">
+                    <span class="ndb-tag is-warn" data-ndb-text="warning"></span>
+                  </template>
+                </button>
+              </li>
+            </template>
+          </ol>
+
+          <p class="ndb-empty" data-ndb-show="visibleSeoImages.length === 0">
+            <span data-ndb-show="seoProblemsOnly && !seoSearch">No image has a problem.</span>
+            <span data-ndb-show="!seoProblemsOnly || seoSearch">No images match.</span>
+          </p>
+        </div>
+
+        <div data-ndb-show="seoTab === 'links'">
+          ${facts([
+            { label: 'Internal', value: 'seo.links.counts.internal' },
+            { label: 'External', value: 'seo.links.counts.external' },
+            { label: 'Nofollow', value: 'seo.links.counts.nofollow' },
+            { label: 'With a problem', value: 'seo.counts.links', tone: "seo.counts.links ? 'warn' : 'ok'" },
+          ])}
+
+          <ol class="ndb-list">
+            <template data-ndb-for="link in visibleSeoLinks" data-ndb-bind:key="link.index">
+              <li>
+                <button type="button" class="ndb-seo-row"
+                        data-ndb-on:click="revealSeo('links', link.index)"
+                        data-ndb-on:mouseenter="highlightSeo('links', link.index, true)"
+                        data-ndb-on:mouseleave="highlightSeo('links', link.index, false)"
+                        data-ndb-on:focus="highlightSeo('links', link.index, true)"
+                        data-ndb-on:blur="highlightSeo('links', link.index, false)"
+                        title="Scroll to this link">
+                  <span class="ndb-seo-text">
+                    <span data-ndb-text="link.text || '(no text)'"
+                          data-ndb-bind:class="link.text ? '' : 'ndb-dim'"></span>
+                    <small class="ndb-dim ndb-mono ndb-block ndb-truncate" data-ndb-text="link.href"></small>
+                  </span>
+                  <span class="ndb-tag" data-ndb-text="link.kind"></span>
+                  <span class="ndb-tag" data-ndb-show="link.nofollow">nofollow</span>
+                  <template data-ndb-for="(warning, index) in link.warnings" data-ndb-bind:key="index">
+                    <span class="ndb-tag is-warn" data-ndb-text="warning"></span>
+                  </template>
+                </button>
+              </li>
+            </template>
+          </ol>
+
+          <p class="ndb-empty" data-ndb-show="visibleSeoLinks.length === 0">
+            <span data-ndb-show="seoProblemsOnly && !seoSearch">No link has a problem.</span>
+            <span data-ndb-show="!seoProblemsOnly || seoSearch">No links match.</span>
+          </p>
+        </div>
+
+        <div data-ndb-show="seoTab === 'social'">
+          <div class="ndb-callout is-warn" data-ndb-show="seo.social.warnings.length > 0">
+            <template data-ndb-for="(warning, index) in seo.social.warnings" data-ndb-bind:key="index">
+              <p data-ndb-text="warning"></p>
+            </template>
+          </div>
+
+          <div class="ndb-subhead">
+            <div>
+              <h3>Open Graph</h3>
+              <p>What Facebook, LinkedIn, Slack and most chat apps show when this page is shared.</p>
+            </div>
+          </div>
+          <table class="ndb-table" data-ndb-show="seo.social.openGraph.length > 0">
+            <tbody>
+              <template data-ndb-for="(tag, index) in seo.social.openGraph" data-ndb-bind:key="index">
+                <tr><td class="ndb-mono" data-ndb-text="tag.name"></td><td data-ndb-text="tag.value"></td></tr>
+              </template>
+            </tbody>
+          </table>
+          <p class="ndb-empty" data-ndb-show="seo.social.openGraph.length === 0">No Open Graph tags.</p>
+
+          <div class="ndb-subhead">
+            <div>
+              <h3>X card</h3>
+              <p>X falls back to Open Graph for the title, description and image.</p>
+            </div>
+          </div>
+          <table class="ndb-table" data-ndb-show="seo.social.x.length > 0">
+            <tbody>
+              <template data-ndb-for="(tag, index) in seo.social.x" data-ndb-bind:key="index">
+                <tr><td class="ndb-mono" data-ndb-text="tag.name"></td><td data-ndb-text="tag.value"></td></tr>
+              </template>
+            </tbody>
+          </table>
+          <p class="ndb-empty" data-ndb-show="seo.social.x.length === 0">No X card tags.</p>
+        </div>
+      </div>
+      </template>
+
       <template data-ndb-if="isSection('history')">
       <div>
         ${subTabs('historyTab', [
