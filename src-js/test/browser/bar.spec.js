@@ -415,7 +415,11 @@ test.describe('the bar', () => {
 
       await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
       await page.mouse.down()
-      await page.mouse.move(handle.x + handle.width / 2, 300, { steps: 5 })
+      // Stay in the lower half: a reset returns the dock to the edge it was dragged
+      // nearest, and this test asks for the standard position it started from.
+      const lowerHalf = page.viewportSize().height * 0.7
+
+      await page.mouse.move(handle.x + handle.width / 2, lowerHalf, { steps: 5 })
       await page.mouse.up()
 
       expect(await state(page, (data) => data.dockPosition)).not.toBe(null)
