@@ -83,6 +83,27 @@ async function alpineErrors(page) {
 }
 
 /**
+ * Closes the inspector and waits for the dock to stand still.
+ *
+ * x-show reveals the dock on a timer and the bar clamps it on the frame after, so a box
+ * read straight after closing is either null or a dock still on its way to its place.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function closeToDock(page) {
+  await state(page, (data) => { data.closeInspector() })
+  await expect(page.locator('.ndb-dock')).toBeVisible()
+  await page.waitForFunction(() => new Promise((resolve) => {
+    const dock = document.querySelector('siteation-debugbar').shadowRoot.querySelector('.ndb-dock')
+    const first = JSON.stringify(dock.getBoundingClientRect())
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      resolve(first === JSON.stringify(dock.getBoundingClientRect()))
+    }))
+  }))
+}
+
+/**
  * @param {import('@playwright/test').Page} page
  */
 async function openBar(page) {
@@ -369,7 +390,7 @@ test.describe('the bar', () => {
 
   test('the dock can be dragged by its grip and remembers where it was left', async ({ page }) => {
     await openBar(page)
-    await state(page, (data) => { data.closeInspector() })
+    await closeToDock(page)
 
     const dock = page.locator('.ndb-dock')
     const grip = page.locator('.ndb-drag-handle')
@@ -400,7 +421,7 @@ test.describe('the bar', () => {
   test('a click on the grip leaves the dock alone, and a double click puts it back',
     async ({ page }) => {
       await openBar(page)
-      await state(page, (data) => { data.closeInspector() })
+      await closeToDock(page)
 
       const dock = page.locator('.ndb-dock')
       const grip = page.locator('.ndb-drag-handle')
