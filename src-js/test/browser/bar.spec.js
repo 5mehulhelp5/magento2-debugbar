@@ -543,3 +543,49 @@ test.describe('the bar', () => {
     expect(href).toMatch(/\d+$/)
   })
 })
+
+test.describe('the SEO section', () => {
+  test('reads the page, walks every view, and points at a heading on it', async ({ page }) => {
+    await openBar(page)
+    await state(page, (data) => { data.section = 'seo' })
+
+    // Read from the live page, so it is the document's own title and not a profile field.
+    const title = await page.title()
+
+    await waitForState(page, (data) => data.seo.overview.title.value !== '')
+    expect(await state(page, (data) => data.seo.overview.title.value)).toBe(title.trim())
+
+    for (const view of ['overview', 'headings', 'images', 'links', 'social']) {
+      await page.evaluate((id) => {
+        document.querySelector('siteation-debugbar').shadowRoot
+          .querySelector('.ndb')._x_dataStack[0].seoTab = id
+      }, view)
+
+      const errors = await ourAlpineErrors(page)
+
+      expect(errors, `the ${view} view threw: ${JSON.stringify(errors)}`).toEqual([])
+    }
+
+    await state(page, (data) => { data.seoTab = 'headings' })
+
+    const headings = await page.evaluate(() => document.querySelectorAll('h1, h2, h3, h4, h5, h6').length)
+
+    expect(await state(page, (data) => data.seo.headings.items.length)).toBe(headings)
+    test.skip(headings === 0, 'this page has no headings to point at')
+
+    await page.locator('.ndb-seo-tree .ndb-seo-row').first().hover()
+
+    const outlined = await page.evaluate(
+      () => document.querySelector('h1, h2, h3, h4, h5, h6').style.outline
+    )
+
+    expect(outlined, 'hovering a row outlines its heading').toContain('solid')
+
+    // Moved off, the page gets its own inline style back, which on a store heading is none.
+    await page.locator('.ndb-section-head h2').hover()
+
+    expect(await page.evaluate(
+      () => document.querySelector('h1, h2, h3, h4, h5, h6').style.outline
+    )).toBe('')
+  })
+})

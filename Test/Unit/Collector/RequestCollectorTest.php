@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Siteation\DebugBar\Test\Unit\Collector;
 
+use Laminas\Http\Header\GenericHeader;
 use Magento\Framework\App\Request\Http as HttpRequest;
+use Magento\Framework\App\Response\HttpInterface as HttpResponse;
 use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\App\State;
 use PHPUnit\Framework\Attributes\Test;
@@ -188,6 +190,52 @@ class RequestCollectorTest extends TestCase
         $rubbish->finalize($this->createStub(ResponseInterface::class));
 
         $this->assertArrayNotHasKey('magewire', $rubbish->summary());
+    }
+
+    #[Test]
+    public function theRobotsHeaderIsKeptBecauseThePageCannotReadItItself(): void
+    {
+        // A script cannot read the headers of the response that loaded it, so the SEO
+        // section would otherwise have to fetch the page again and risk a cached answer.
+        $collector = $this->collector('/women.html');
+        $collector->finalize($this->responseWith(['X-Robots-Tag' => '  noindex, nofollow ']));
+
+        $this->assertSame('noindex, nofollow', $collector->summary()['robots_header']);
+
+        $long = $this->collector('/women.html');
+        $long->finalize($this->responseWith(['X-Robots-Tag' => str_repeat('x', 500)]));
+
+        $this->assertSame(200, strlen($long->summary()['robots_header']), 'bounded like any stored string');
+    }
+
+    #[Test]
+    public function aResponseWithoutTheRobotsHeaderCarriesNoKeyForIt(): void
+    {
+        $sent = $this->collector('/women.html');
+        $sent->finalize($this->responseWith([]));
+
+        $this->assertArrayNotHasKey('robots_header', $sent->summary());
+
+        $bare = $this->collector('/women.html');
+        $bare->finalize($this->createStub(ResponseInterface::class));
+
+        $this->assertArrayNotHasKey('robots_header', $bare->summary());
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function responseWith(array $headers): HttpResponse
+    {
+        $response = $this->createStub(HttpResponse::class);
+        $response->method('getHttpResponseCode')->willReturn(200);
+        $response->method('getHeader')->willReturnCallback(
+            static fn (string $name): GenericHeader|false => isset($headers[$name])
+                ? new GenericHeader($name, $headers[$name])
+                : false
+        );
+
+        return $response;
     }
 
     /**

@@ -101,10 +101,46 @@ Filter it by typing.
 | Plugins | Which interceptors were built for this request, and on what |
 | Alpine | The components on the page right now, and their live state |
 | Magewire | The components on the page, their state, and each update's cost |
+| SEO | The page as a search engine or a link preview reads it |
 | History | Every profile still on disk, so an earlier request is one click away |
 
-Alpine and Magewire read the live page rather than the stored profile, so they show what is
-in the browser now. Everything else is the profile.
+Alpine, Magewire and SEO read the live page rather than the stored profile, so they show what
+is in the browser now. Everything else is the profile.
+
+### SEO
+
+Five views, each with a count of what needs a look:
+
+- **Overview**: the title and meta description with their length, the canonical URL and why
+  it differs from this page when it does, the robots meta tag and the `X-Robots-Tag` header,
+  every hreflang alternate, the language, viewport, charset and word count. Below that, links
+  to robots.txt, sitemap.xml and PageSpeed Insights, and on a product, category or CMS page,
+  **Edit this page in the admin**.
+- **Headings**: H1 to H6 as an outline, with a missing or second H1, a skipped level, an empty
+  heading and a hidden one flagged. Hover a row to outline the heading on the page; click it to
+  scroll there.
+- **Images**: alt text that is missing, empty or a file name; a missing `width` or `height`; an
+  image drawn at less than half its real width; and `loading="lazy"` on an image that is on
+  the first screen.
+- **Links**: internal, external and nofollow counts, and links with no text, links that go
+  nowhere, `javascript:` links, internal links marked nofollow, and `http:` links on an
+  `https:` page.
+- **Social**: the Open Graph and X card tags, with each required one that is missing.
+
+Images and Links show only the rows with a problem until you switch **Problems only** off.
+The page is read when it finishes loading and again whenever you open the section; **Refresh**
+reads it again on demand.
+
+The `X-Robots-Tag` header is the one thing that comes from the profile, because a script
+cannot read the headers of the response that loaded it.
+
+**Edit this page in the admin** goes through a small admin route that checks your role and
+then redirects to the edit screen, with the secret key added when the store uses one. You are
+asked to log in first when you are not. The link shows the admin's address to whoever can see
+the bar, which is the reason it is only there while the SEO section is on.
+
+No value policy applies to this section. Everything it shows is markup the page has already
+drawn for you.
 
 Only summaries travel with the page, about 1.5 kB. A section's contents are fetched the
 first time you open it.

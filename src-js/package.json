@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
+    "linkedom": "^0.18.12",
     "vite": "^7.1.5"
   }
 }

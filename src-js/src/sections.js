@@ -94,6 +94,12 @@ export const SECTIONS = [
     graded: false,
   },
   {
+    id: 'seo',
+    label: 'SEO',
+    lead: 'This page as a search engine or a link preview reads it: tags, headings, images and links.',
+    graded: false,
+  },
+  {
     id: 'history',
     label: 'History',
     lead: 'Every request still on disk, so an earlier one is one click away.',
@@ -105,7 +111,7 @@ export const SECTIONS = [
  * Counts shown beside each section in the sidebar. Null means the section has nothing
  * worth counting, so no badge is drawn rather than a misleading zero.
  *
- * Alpine and Magewire are the two counts that do not come from the profile. They are read
+ * Alpine, Magewire and SEO are the counts that do not come from the profile. They are read
  * from the page, so they can change without the request changing.
  *
  * @param {string} id
@@ -125,6 +131,7 @@ export function countFor(id, state) {
     case 'plugins': return state.interception.plugin_count || null
     case 'alpine': return state.alpineComponents.length || null
     case 'magewire': return state.magewireComponents.length || null
+    case 'seo': return state.seo.warningCount || null
     case 'history': return state.history.length || null
     default: return null
   }

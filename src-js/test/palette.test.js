@@ -32,6 +32,7 @@ function state(overrides = {}) {
     interception: {},
     alpineComponents: [],
     magewireComponents: [],
+    seo: {},
     history: [],
     ...overrides,
   }

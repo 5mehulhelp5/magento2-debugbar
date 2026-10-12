@@ -62,6 +62,10 @@ that a fix helped rather than that it looks like it should have.
   The application never ran. Say so rather than reporting it as a good result.
 * **`own_ms` on a block excludes its children.** Use it to find the block worth fixing;
   `total_ms` on a container is just the page.
+* **SEO findings are not in a profile.** The bar's SEO section reads the live page in the
+  browser, so none of its checks reach these tools. The one SEO fact a profile holds is the
+  `X-Robots-Tag` header, as `robots_header` in the `request` section, and only when the
+  response sent one. Do not report a page as free of SEO problems from a profile.
 
 ## Explain the result
 

@@ -9,6 +9,7 @@ use Magento\Framework\HTTP\PhpEnvironment\Response as HttpResponse;
 use Magento\Framework\UrlInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Siteation\DebugBar\Model\AdminEditLink;
 use Siteation\DebugBar\Model\Config;
 use Siteation\DebugBar\Model\Redactor;
 use Siteation\DebugBar\Presentation\AssetUrl;
@@ -31,7 +32,24 @@ class BarInjectorTest extends TestCase
         $config = $this->createStub(Config::class);
         $config->method('valuePolicy')->willReturn(Redactor::POLICY_MASKED);
 
-        $this->injector = new BarInjector($assets, $url, $config);
+        $adminEditLink = $this->createStub(AdminEditLink::class);
+        $adminEditLink->method('forCurrentPage')
+            ->willReturn('https://example.test/admin/siteation_debugbar/entity/edit/id/7/?a=1&b=2');
+
+        $this->injector = new BarInjector($assets, $url, $config, $adminEditLink);
+    }
+
+    #[Test]
+    public function itPublishesTheAdminEditLinkEscaped(): void
+    {
+        $response = $this->response('<html><head></head><body></body></html>');
+
+        $this->injector->inject($response, $this->profile());
+
+        $this->assertStringContainsString(
+            'data-admin-edit="https://example.test/admin/siteation_debugbar/entity/edit/id/7/?a=1&amp;b=2"',
+            $response->getContent()
+        );
     }
 
     #[Test]
