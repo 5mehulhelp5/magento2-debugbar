@@ -22,6 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   described twice, and the markup ready to paste into Google's tools when they cannot
   reach the shop.
 
+- A **Data layer** section
+  ([#5](https://github.com/Siteation/magento2-debugbar/issues/5)),
+  with Pushes, Tags and Consent views: every `dataLayer.push` from the first byte, kept
+  across pages in the tab, with paths to copy and GA4 ecommerce checks; the tags on the
+  page and the ones loaded twice; and the Consent Mode v2 state. Values go through the
+  value policy before they are shown or kept.
+
+- Request entries in the head script's buffer carry `at`, the time the response arrived,
+  so a data layer push can be matched to the request before it.
+
 - **Edit this page in the admin**, on product, category and CMS pages.
   It goes through a new admin route, `siteation_debugbar/entity/edit`,
   which checks the role for that kind of page and adds the secret key when the store uses one.
@@ -32,7 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - A store that already chose which sections to show keeps that list,
-  so the SEO section stays off there until it is added under Sections in the configuration.
+  so the SEO and Data layer sections stay off there until they are added under Sections in
+  the configuration.
 
 [Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.2.0...main
 

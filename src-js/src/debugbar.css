@@ -1980,3 +1980,30 @@ a.ndb-chip { text-decoration: none; }
 }
 
 .ndb-schema-findings a:hover { border-bottom-style: solid; }
+
+/* the data layer */
+
+.ndb-push-page {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ndb-border);
+  background: var(--ndb-bg-2);
+  font-size: 14px;
+}
+
+.ndb-push-path {
+  font: inherit;
+  color: var(--ndb-accent);
+  background: none;
+  border: 0;
+  border-bottom: 1px dotted currentColor;
+  padding: 0;
+  cursor: copy;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.ndb-push-paths td { overflow-wrap: anywhere; }

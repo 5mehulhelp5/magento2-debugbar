@@ -66,6 +66,8 @@ that a fix helped rather than that it looks like it should have.
   browser, so none of its checks reach these tools. The one SEO fact a profile holds is the
   `X-Robots-Tag` header, as `robots_header` in the `request` section, and only when the
   response sent one. Do not report a page as free of SEO problems from a profile.
+* **Data layer findings are not in a profile either.** The Data layer section reads
+  `window.dataLayer` in the browser. Nothing a page pushed reaches these tools.
 
 ## Explain the result
 

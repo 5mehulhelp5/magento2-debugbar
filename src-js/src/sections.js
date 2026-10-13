@@ -100,6 +100,12 @@ export const SECTIONS = [
     graded: false,
   },
   {
+    id: 'datalayer',
+    label: 'Data layer',
+    lead: 'What the page pushed to window.dataLayer, which tags it loads, and the consent they were given.',
+    graded: false,
+  },
+  {
     id: 'history',
     label: 'History',
     lead: 'Every request still on disk, so an earlier one is one click away.',
@@ -111,7 +117,7 @@ export const SECTIONS = [
  * Counts shown beside each section in the sidebar. Null means the section has nothing
  * worth counting, so no badge is drawn rather than a misleading zero.
  *
- * Alpine, Magewire and SEO are the counts that do not come from the profile. They are read
+ * Alpine, Magewire, SEO and the data layer are the counts that do not come from the profile. They are read
  * from the page, so they can change without the request changing.
  *
  * @param {string} id
@@ -132,6 +138,7 @@ export function countFor(id, state) {
     case 'alpine': return state.alpineComponents.length || null
     case 'magewire': return state.magewireComponents.length || null
     case 'seo': return state.seo.warningCount || null
+    case 'datalayer': return state.dataLayer.warningCount || null
     case 'history': return state.history.length || null
     default: return null
   }

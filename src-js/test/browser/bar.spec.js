@@ -688,3 +688,85 @@ test.describe('the SEO section', () => {
     expect(errors, `the schema view threw: ${JSON.stringify(errors)}`).toEqual([])
   })
 })
+
+test.describe('the data layer section', () => {
+  test('records pushes from before and after the bar, behind a replaced push, and keeps them across pages', async ({ page }) => {
+    // Before anything on the page runs, as a consent banner or a GTM snippet in the head
+    // would. These are in the array before early.js arrives.
+    await page.addInitScript(() => {
+      window.dataLayer = window.dataLayer || []
+      window.gtag = function () { window.dataLayer.push(arguments) }
+      window.gtag('consent', 'default', {
+        ad_storage: 'denied',
+        analytics_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+      })
+      window.dataLayer.push({ event: 'gtm.js', 'gtm.start': 1 })
+    })
+
+    await openBar(page)
+
+    const result = await page.evaluate(() => {
+      // What GTM does when it loads: keep the push it found and assign its own.
+      window.seenByTag = 0
+      const found = window.dataLayer.push
+
+      window.dataLayer.push = function () {
+        window.seenByTag += arguments.length
+
+        return found.apply(window.dataLayer, arguments)
+      }
+
+      window.dataLayer.push({ ecommerce: null })
+      window.dataLayer.push({ event: 'add_to_cart', ecommerce: { value: 34, items: [{ item_id: 'NDB-1' }] } })
+      window.gtag('consent', 'update', { analytics_storage: 'granted' })
+
+      return { length: window.dataLayer.length, seenByTag: window.seenByTag }
+    })
+
+    expect(result, 'every push reached the array once and the tag saw each one').toEqual({ length: 5, seenByTag: 3 })
+
+    await state(page, (data) => { data.section = 'datalayer' })
+    await waitForState(page, (data) => data.dataLayer.pushes.length === 5)
+
+    const model = await state(page, (data) => JSON.parse(JSON.stringify(data.dataLayer)))
+
+    expect(model.pushes.map((push) => [push.name, push.before])).toEqual([
+      ['consent default', true],
+      ['gtm.js', true],
+      ['ecommerce', false],
+      ['add_to_cart', false],
+      ['consent update', false],
+    ])
+    expect(model.pushes[3].problems).toEqual(['value without currency'])
+    expect(model.consent.keys.find((row) => row.key === 'analytics_storage'))
+      .toEqual({ key: 'analytics_storage', default: 'denied', current: 'granted' })
+    expect(model.consent.warnings).toEqual([])
+    expect(await state(page, (data) => data.sections.find((section) => section.id === 'datalayer') !== undefined)).toBe(true)
+
+    const row = page.locator('.ndb-push').filter({ hasText: 'add_to_cart' })
+
+    await row.locator('.ndb-alpine-head').click()
+    await expect(row.locator('.ndb-json')).toContainText('"NDB-1"')
+    await expect(row.locator('.ndb-callout')).toContainText('value without currency')
+
+    await page.locator('.ndb-chip', { hasText: 'Paths' }).click()
+    await row.locator('.ndb-push-path', { hasText: 'ecommerce.items[0].item_id' }).click()
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('ecommerce.items[0].item_id')
+
+    expect(await ourAlpineErrors(page), 'the data layer section threw').toEqual([])
+
+    // The next page in this tab starts with this one's pushes, marked as earlier.
+    await page.reload()
+    await page.waitForFunction(
+      () => document.querySelector('siteation-debugbar')?.shadowRoot?.querySelector('.ndb')?._x_dataStack !== undefined
+    )
+    await waitForState(page, (data) => data.dataLayerEarlier.length > 0)
+
+    const earlier = await state(page, (data) => data.dataLayerEarlier.map((push) => [push.name, push.current]))
+
+    expect(earlier).toContainEqual(['add_to_cart', false])
+  })
+})
+

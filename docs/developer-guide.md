@@ -173,6 +173,12 @@ checks them against `RICH_RESULT_RULES`, one table of required and recommended p
 type with the Google page each came from. When Google changes a rule, change that table and
 its test in `test/schema.test.js`.
 
+`datalayer.js` holds the Data layer checks, as plain functions over the pushes early.js
+records; `datalayer-page.js` reads the buffer, `window.google_tag_manager` and the tab's
+session storage. The recorder itself is in `early.js`, because it has to be in place before
+the page's tags load. Its tests in `test/early.test.js` run the real file in a `vm` context,
+including a push replaced the way GTM replaces it.
+
 The admin edit link has a server half. `Model\AdminEditLink` names the entity from the
 storefront request's route and id parameter and points at the admin route
 `siteation_debugbar/entity/edit`. It builds that URL from configuration rather than through

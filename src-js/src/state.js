@@ -46,6 +46,7 @@ import {
   structuredMarkup,
 } from './seo-page.js'
 import { emptyModel as emptySeo } from './seo.js'
+import { emptyDataLayer, readDataLayer, watchPushes } from './datalayer-page.js'
 
 /** How often the Alpine section re-reads the page while it is the one being looked at. */
 const LIVE_INTERVAL_MS = 1000
@@ -169,6 +170,18 @@ export function debugBar() {
     schemaExpanded: [],
     schemaCopyState: '',
     schemaFallback: '',
+    dataLayerTab: 'pushes',
+    dataLayer: emptyDataLayer(),
+    /** @type {Array<object>} pushes from earlier pages in this tab, already cleaned */
+    dataLayerEarlier: [],
+    dataLayerError: '',
+    dataLayerSearch: '',
+    dataLayerFlat: false,
+    dataLayerThisPage: false,
+    /** @type {Array<string>} */
+    dataLayerExpanded: [],
+    dataLayerCopied: '',
+    dataLayerTimer: null,
     alpineTimer: null,
     // The Alpine section reads live objects instead of a redacted profile, so it has to
     // apply the policy itself. See Model/Redactor.php for the stored half.
@@ -239,9 +252,23 @@ export function debugBar() {
       this.$watch('section', (value) => {
         if (value === 'history') this.loadHistory()
         if (value === 'seo') this.refreshSeo()
+        if (value === 'datalayer') this.refreshDataLayer()
       })
 
       this.scheduleSeo()
+
+      if (this.collects('datalayer')) {
+        this.refreshDataLayer()
+        // Every push re-reads, a frame later, so a burst of pushes is one read.
+        watchPushes(() => {
+          if (this.dataLayerTimer) return
+
+          this.dataLayerTimer = setTimeout(() => {
+            this.dataLayerTimer = null
+            this.refreshDataLayer()
+          }, 50)
+        })
+      }
 
       if (this.open && this.section === 'history') this.loadHistory()
 
@@ -1465,6 +1492,81 @@ export function debugBar() {
       } catch {
         this.schemaCopyState = ''
         this.schemaFallback = markup
+      }
+    },
+
+    refreshDataLayer() {
+      if (!this.collects('datalayer')) return
+
+      try {
+        const { model, earlier } = readDataLayer(this.valuePolicy)
+
+        model.pushes.forEach((push) => { push.key = `c${push.index}` })
+        this.dataLayer = model
+        this.dataLayerEarlier = earlier.map((push, index) => ({ ...push, key: `e${index}` }))
+        this.dataLayerError = ''
+      } catch (error) {
+        // A push the bar cannot read must not take the rest of the bar with it.
+        this.dataLayer = emptyDataLayer()
+        this.dataLayerError = String((error && error.message) || error)
+      }
+    },
+
+    /**
+     * Earlier pages first, then this one, newest last: the order they were pushed in.
+     *
+     * @returns {Array<object>}
+     */
+    get visibleDataLayerPushes() {
+      const all = this.dataLayerThisPage
+        ? this.dataLayer.pushes
+        : [...this.dataLayerEarlier, ...this.dataLayer.pushes]
+
+      return search(all, this.dataLayerSearch, ['name', 'page', 'json'])
+    },
+
+    /**
+     * @param {string} key
+     * @returns {boolean}
+     */
+    isDataLayerExpanded(key) {
+      return this.dataLayerExpanded.includes(key)
+    },
+
+    /** @param {string} key */
+    toggleDataLayerPush(key) {
+      this.dataLayerExpanded = this.isDataLayerExpanded(key)
+        ? this.dataLayerExpanded.filter((open) => open !== key)
+        : [...this.dataLayerExpanded, key]
+    },
+
+    /**
+     * Whether a push starts a new page in the list, so the page it was pushed on is shown
+     * once above its pushes rather than on every row.
+     *
+     * @param {object} push
+     * @param {number} position in visibleDataLayerPushes
+     * @returns {boolean}
+     */
+    startsDataLayerPage(push, position) {
+      const previous = this.visibleDataLayerPushes[position - 1]
+
+      return !previous || previous.page !== push.page || previous.current !== push.current
+    },
+
+    /**
+     * The path of a value, as a GTM data layer variable wants it.
+     *
+     * @param {string} path
+     * @returns {Promise<void>}
+     */
+    async copyDataLayerPath(path) {
+      try {
+        await navigator.clipboard.writeText(path)
+        this.dataLayerCopied = path
+        setTimeout(() => { if (this.dataLayerCopied === path) this.dataLayerCopied = '' }, 2000)
+      } catch {
+        this.dataLayerCopied = ''
       }
     },
 

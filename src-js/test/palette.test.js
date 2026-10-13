@@ -33,6 +33,7 @@ function state(overrides = {}) {
     alpineComponents: [],
     magewireComponents: [],
     seo: {},
+    dataLayer: {},
     history: [],
     ...overrides,
   }

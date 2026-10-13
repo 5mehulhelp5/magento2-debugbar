@@ -1060,6 +1060,162 @@ export const template = `
       </div>
       </template>
 
+      <template data-ndb-if="isSection('datalayer')">
+      <div>
+        ${subTabs('dataLayerTab', [
+          { id: 'pushes', label: 'Pushes', count: 'dataLayer.counts.pushes', tone: "'warn'" },
+          { id: 'tags', label: 'Tags', count: 'dataLayer.counts.tags', tone: "'warn'" },
+          { id: 'consent', label: 'Consent', count: 'dataLayer.counts.consent', tone: "'warn'" },
+        ])}
+
+        <p class="ndb-note" data-ndb-show="dataLayerError">
+          Could not read the data layer: <span data-ndb-text="dataLayerError"></span>
+        </p>
+
+        <div data-ndb-show="dataLayerTab === 'pushes'">
+          <div class="ndb-controls">
+            <input class="ndb-search" type="search" data-ndb-model="dataLayerSearch"
+                   placeholder="Filter by event, page or value">
+            <button type="button" class="ndb-chip"
+                    data-ndb-bind:class="dataLayerThisPage && 'is-active'"
+                    data-ndb-on:click="dataLayerThisPage = !dataLayerThisPage">
+              This page only
+            </button>
+            <button type="button" class="ndb-chip"
+                    data-ndb-bind:class="dataLayerFlat && 'is-active'"
+                    data-ndb-on:click="dataLayerFlat = !dataLayerFlat"
+                    title="Show each value with its path, ready for a GTM variable">
+              Paths
+            </button>
+            <button type="button" class="ndb-chip" data-ndb-on:click="refreshDataLayer()"
+                    title="Read the data layer again">Refresh</button>
+          </div>
+
+          <p class="ndb-empty" data-ndb-show="visibleDataLayerPushes.length === 0">
+            <span data-ndb-show="!dataLayer.present && !dataLayerSearch">This page has no window.dataLayer.</span>
+            <span data-ndb-show="dataLayer.present && !dataLayerSearch">Nothing has been pushed yet.</span>
+            <span data-ndb-show="dataLayerSearch">No pushes match.</span>
+          </p>
+
+          <ol class="ndb-list">
+            <template data-ndb-for="(push, position) in visibleDataLayerPushes" data-ndb-bind:key="push.key">
+              <li class="ndb-alpine ndb-push">
+                <p class="ndb-push-page" data-ndb-show="startsDataLayerPage(push, position)">
+                  <span class="ndb-mono" data-ndb-text="push.page"></span>
+                  <span class="ndb-dim" data-ndb-text="push.current ? 'this page' : 'an earlier page in this tab'"></span>
+                </p>
+                <button type="button" class="ndb-alpine-head"
+                        data-ndb-on:click="toggleDataLayerPush(push.key)">
+                  ${icon('caret', 'ndb-alpine-caret')}
+                  <span class="ndb-alpine-name ndb-mono" data-ndb-text="push.name"></span>
+                  <span class="ndb-tag" data-ndb-show="push.kind === 'gtag'">gtag</span>
+                  <span class="ndb-tag" data-ndb-show="push.before"
+                        title="In the array before the bar's hook arrived, so its time is not known">before the bar</span>
+                  <span class="ndb-alpine-path ndb-dim ndb-truncate"
+                        data-ndb-text="push.request ? 'after ' + push.request.label + ', ' + push.request.gap + ' ms' : ''"></span>
+                  <span class="ndb-pill is-warn" data-ndb-show="push.problems.length > 0"
+                        data-ndb-text="push.problems.length"></span>
+                  <span class="ndb-pill" data-ndb-show="!push.before"
+                        data-ndb-text="push.at + ' ms'"></span>
+                </button>
+
+                <div class="ndb-alpine-body" data-ndb-show="isDataLayerExpanded(push.key)">
+                  <div class="ndb-callout is-warn" data-ndb-show="push.problems.length > 0">
+                    <p>GA4 ecommerce:</p>
+                    <template data-ndb-for="(problem, index) in push.problems" data-ndb-bind:key="index">
+                      <p data-ndb-text="problem"></p>
+                    </template>
+                  </div>
+                  <p class="ndb-dim" data-ndb-show="!push.json">
+                    The store's value policy shows no values.
+                  </p>
+                  <pre class="ndb-json" data-ndb-show="push.json && !dataLayerFlat"
+                       data-ndb-code="highlight(push.json, 'json')"></pre>
+                  <table class="ndb-table ndb-push-paths" data-ndb-show="push.json && dataLayerFlat">
+                    <tbody>
+                      <template data-ndb-for="(row, index) in push.flat" data-ndb-bind:key="index">
+                        <tr>
+                          <td class="ndb-mono">
+                            <button type="button" class="ndb-push-path"
+                                    data-ndb-on:click="copyDataLayerPath(row.path)"
+                                    title="Copy the path"
+                                    data-ndb-text="dataLayerCopied === row.path ? 'Copied' : row.path"></button>
+                          </td>
+                          <td class="ndb-mono" data-ndb-text="row.value"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </li>
+            </template>
+          </ol>
+
+          <p class="ndb-note">
+            Values go through the store's value policy before they are shown or kept. Pushes
+            from earlier pages in this tab are kept in session storage, which the browser
+            clears when the tab closes.
+          </p>
+        </div>
+
+        <div data-ndb-show="dataLayerTab === 'tags'">
+          <div class="ndb-callout is-warn" data-ndb-show="dataLayer.tags.warnings.length > 0">
+            <template data-ndb-for="(warning, index) in dataLayer.tags.warnings" data-ndb-bind:key="index">
+              <p data-ndb-text="warning"></p>
+            </template>
+          </div>
+
+          <table class="ndb-table" data-ndb-show="dataLayer.tags.items.length > 0">
+            <thead><tr><th>Tag</th><th>Id</th><th>Found in</th></tr></thead>
+            <tbody>
+              <template data-ndb-for="(tag, index) in dataLayer.tags.items" data-ndb-bind:key="index">
+                <tr>
+                  <td data-ndb-text="tag.vendor"></td>
+                  <td class="ndb-mono" data-ndb-text="tag.id || 'not in the URL'"></td>
+                  <td class="ndb-dim" data-ndb-text="tag.where"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <p class="ndb-empty" data-ndb-show="dataLayer.tags.items.length === 0">
+            No known tags on this page.
+          </p>
+        </div>
+
+        <div data-ndb-show="dataLayerTab === 'consent'">
+          <div class="ndb-callout is-warn" data-ndb-show="dataLayer.consent.warnings.length > 0">
+            <template data-ndb-for="(warning, index) in dataLayer.consent.warnings" data-ndb-bind:key="index">
+              <p data-ndb-text="warning"></p>
+            </template>
+          </div>
+
+          <p class="ndb-empty" data-ndb-show="dataLayer.consent.calls.length === 0">
+            No consent commands in the data layer on this page.
+          </p>
+
+          <table class="ndb-table" data-ndb-show="dataLayer.consent.calls.length > 0">
+            <thead><tr><th>Consent Mode v2</th><th>Default</th><th>Now</th></tr></thead>
+            <tbody>
+              <template data-ndb-for="row in dataLayer.consent.keys" data-ndb-bind:key="row.key">
+                <tr>
+                  <td class="ndb-mono" data-ndb-text="row.key"></td>
+                  <td class="ndb-mono" data-ndb-text="row.default || 'not set'"
+                      data-ndb-bind:class="row.default ? '' : 'ndb-dim'"></td>
+                  <td class="ndb-mono" data-ndb-text="row.current || 'not set'"
+                      data-ndb-bind:class="row.current === 'granted' ? 'is-ok' : ''"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <p class="ndb-note" data-ndb-show="dataLayer.consent.calls.length > 0">
+            <span data-ndb-text="plural(dataLayer.consent.updates, 'update', 'updates')"></span>
+            after the default. Read from gtag('consent', ...) calls in the data layer, the way
+            Google's tags read it.
+          </p>
+        </div>
+      </div>
+      </template>
+
       <template data-ndb-if="isSection('history')">
       <div>
         ${subTabs('historyTab', [
