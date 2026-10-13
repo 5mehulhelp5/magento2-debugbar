@@ -1,0 +1,45 @@
+{
+    "name": "siteation/debugbar-ci-host",
+    "description": "CI host for this module: what it needs to be unit tested and analysed without a shop. See .github/workflows/ci.yml.",
+    "type": "project",
+    "license": "MIT",
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://mirror.mage-os.org/",
+            "only": [
+                "magento/*"
+            ]
+        }
+    ],
+    "require": {
+        "magento/framework": "^103.0",
+        "magento/module-backend": "*",
+        "magento/module-cms": "*",
+        "magento/module-config": "*",
+        "magento/module-page-cache": "*",
+        "magento/module-store": "*"
+    },
+    "require-dev": {
+        "magento/magento-coding-standard": "*",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "*"
+    },
+    "autoload": {
+        "files": [
+            "../module/registration.php"
+        ],
+        "psr-4": {
+            "Siteation\\DebugBar\\": "../module/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "magento/composer-dependency-version-audit-plugin": false,
+            "magento/magento-composer-installer": false,
+            "php-http/discovery": false
+        }
+    },
+    "minimum-stability": "stable"
+}

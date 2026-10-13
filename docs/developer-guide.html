@@ -200,7 +200,8 @@ npm run build         # or npm run dev, which watches the main bundle</code></pr
 <h2 id="testing"><a class="anchor" href="#testing">Testing</a></h2>
 <pre><code>vendor/bin/phpcs  --standard=&lt;pkg&gt;/phpcs.xml.dist &lt;pkg&gt;
 vendor/bin/phpstan analyse -c &lt;pkg&gt;/phpstan.neon.dist
-vendor/bin/phpunit --configuration &lt;pkg&gt;/phpunit.xml.dist      # 291 tests
+vendor/bin/phpunit --configuration &lt;pkg&gt;/phpunit.xml.dist \
+    --bootstrap vendor/autoload.php                            # 304 tests
 &lt;pkg&gt;/dev/smoke https://your-store.test admin                  # 31 checks over HTTP
 cd &lt;pkg&gt;/src-js &amp;&amp; npm test                                    # 163, no store needed
 cd &lt;pkg&gt;/src-js &amp;&amp; npm run test:browser                        # 30, needs the store up</code></pre>
@@ -208,6 +209,13 @@ cd &lt;pkg&gt;/src-js &amp;&amp; npm run test:browser                        # 3
 <pre><code>composer global require phpstan/phpstan:^2.2
 ~/.composer/vendor/bin/phpstan analyse -c &lt;pkg&gt;/phpstan-versions.neon.dist</code></pre>
 <p>That pass is what says the constraint is honest. It reports a typed class constant or a <code>json_validate()</code> as unavailable rather than waiting for a 8.2 install to find it at runtime. Change the constraint in <code>composer.json</code> and change the range beside it.</p>
+<h3 id="ci"><a class="anchor" href="#ci">CI</a></h3>
+<p><code>.github/workflows/ci.yml</code> runs every check above that needs no store, on each pull request and on main: PHPUnit and PHPStan on PHP 8.2 to 8.5, the PHPStan range pass and phpcs once, the JS unit tests, and a fresh <code>npm run build</code> that fails when <code>view/base/web</code> differs from what is committed. phpcs fails on errors and reports warnings. The smoke and browser suites need a store, so they stay manual.</p>
+<p>There is no shop in CI. <code>dev/ci</code> is a small Composer project that installs Magento from the Mage-OS public mirror, so no Magento keys are needed, plus PHPUnit, PHPStan 2 and the Magento coding standard. The workflow checks the module out at <code>module/</code> and copies <code>dev/ci</code> to <code>host/</code> beside it. <code>dev/ci/bootstrap.php</code> registers the generator Magento&#039;s own unit tests use, so factories that only exist once a store generates them, such as <code>RawFactory</code>, can be mocked and analysed. To reproduce a run locally:</p>
+<pre><code>mkdir ci &amp;&amp; git clone &lt;repo&gt; ci/module &amp;&amp; cp -R ci/module/dev/ci ci/host
+composer install -d ci/host &amp;&amp; cd ci
+host/vendor/bin/phpunit -c module/phpunit.xml.dist --bootstrap host/bootstrap.php
+host/vendor/bin/phpstan analyse -c module/phpstan.neon.dist --autoload-file host/bootstrap.php</code></pre>
 <h3 id="dev-smoke"><a class="anchor" href="#dev-smoke">dev/smoke</a></h3>
 <pre><code>dev/smoke &lt;base-url&gt; [admin-path]
 dev/smoke https://your-store.test admin</code></pre>

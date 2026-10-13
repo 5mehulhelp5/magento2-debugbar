@@ -11,3 +11,7 @@ src-js/playwright-report/
 .DS_Store
 .idea/
 .vscode/
+
+# The CI host, when installed in place (see dev/ci/bootstrap.php).
+/dev/ci/vendor/
+/dev/ci/generated/
