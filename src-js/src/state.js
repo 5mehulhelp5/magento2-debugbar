@@ -47,6 +47,13 @@ import {
 } from './seo-page.js'
 import { emptyModel as emptySeo } from './seo.js'
 import { emptyDataLayer, readDataLayer, watchPushes } from './datalayer-page.js'
+import {
+  emptyVitals,
+  outline as outlineVital,
+  readVitals,
+  reveal as revealVital,
+  watchVitals,
+} from './vitals-page.js'
 
 /** How often the Alpine section re-reads the page while it is the one being looked at. */
 const LIVE_INTERVAL_MS = 1000
@@ -182,6 +189,9 @@ export function debugBar() {
     dataLayerExpanded: [],
     dataLayerCopied: '',
     dataLayerTimer: null,
+    vitals: emptyVitals(),
+    vitalsError: '',
+    vitalsTimer: null,
     alpineTimer: null,
     // The Alpine section reads live objects instead of a redacted profile, so it has to
     // apply the policy itself. See Model/Redactor.php for the stored half.
@@ -253,6 +263,7 @@ export function debugBar() {
         if (value === 'history') this.loadHistory()
         if (value === 'seo') this.refreshSeo()
         if (value === 'datalayer') this.refreshDataLayer()
+        if (value === 'vitals') this.refreshVitals()
       })
 
       this.scheduleSeo()
@@ -266,6 +277,19 @@ export function debugBar() {
           this.dataLayerTimer = setTimeout(() => {
             this.dataLayerTimer = null
             this.refreshDataLayer()
+          }, 50)
+        })
+      }
+
+      if (this.collects('vitals')) {
+        // The buffered entries arrive in the first callback, so this is also the first read.
+        // A burst of entries, as when the page settles, is one read a frame later.
+        watchVitals(() => {
+          if (this.vitalsTimer) return
+
+          this.vitalsTimer = setTimeout(() => {
+            this.vitalsTimer = null
+            this.refreshVitals()
           }, 50)
         })
       }
@@ -1568,6 +1592,39 @@ export function debugBar() {
       } catch {
         this.dataLayerCopied = ''
       }
+    },
+
+    refreshVitals() {
+      if (!this.collects('vitals')) return
+
+      try {
+        this.vitals = readVitals(this.rootElement())
+        this.vitalsError = ''
+      } catch (error) {
+        this.vitals = emptyVitals()
+        this.vitalsError = String((error && error.message) || error)
+      }
+    },
+
+    /**
+     * @param {number} index
+     * @param {boolean} on
+     */
+    highlightVital(index, on) {
+      outlineVital(index, on)
+    },
+
+    /** @param {number} index */
+    revealVital(index) {
+      revealVital(index)
+    },
+
+    /**
+     * @param {string} rating good, needs-improvement or poor
+     * @returns {string}
+     */
+    vitalTone(rating) {
+      return { good: 'is-ok', 'needs-improvement': 'is-warn', poor: 'is-bad' }[rating] || ''
     },
 
     /** @returns {string} the admin redirect for what this page shows, '' when it is not known */

@@ -34,6 +34,7 @@ function state(overrides = {}) {
     magewireComponents: [],
     seo: {},
     dataLayer: {},
+    vitals: {},
     history: [],
     ...overrides,
   }

@@ -179,6 +179,13 @@ session storage. The recorder itself is in `early.js`, because it has to be in p
 the page's tags load. Its tests in `test/early.test.js` run the real file in a `vm` context,
 including a push replaced the way GTM replaces it.
 
+`vitals.js` works out the Web Vitals from performance entries, as plain functions: LCP's
+last candidate, CLS's session windows, INP's 98th percentile, each rated against
+`THRESHOLDS`. `vitals-page.js` keeps a `PerformanceObserver` with `buffered: true` on each
+entry type, so the bar needs nothing in `early.js` for them, and keeps the elements the rows
+point at. It tells the bar's own nodes apart by its host element, which is what the browser
+reports for anything inside the shadow root.
+
 The admin edit link has a server half. `Model\AdminEditLink` names the entity from the
 storefront request's route and id parameter and points at the admin route
 `siteation_debugbar/entity/edit`. It builds that URL from configuration rather than through

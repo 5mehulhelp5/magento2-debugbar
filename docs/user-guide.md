@@ -103,11 +103,11 @@ Filter it by typing.
 | Magewire | The components on the page, their state, and each update's cost |
 | SEO | The page as a search engine or a link preview reads it |
 | Data layer | What the page pushed to `window.dataLayer`, its tags, and their consent state |
+| Web Vitals | How fast this page loaded, how much it moved, and how quickly it answered input |
 | History | Every profile still on disk, so an earlier request is one click away |
 
-Alpine, Magewire, SEO and Data layer read the live page rather than the stored profile, so they
-show what
-is in the browser now. Everything else is the profile.
+Alpine, Magewire, SEO, Data layer and Web Vitals read the live page rather than the stored
+profile, so they show what is in the browser now. Everything else is the profile.
 
 ### SEO
 
@@ -188,6 +188,33 @@ goes through the store's value policy before it is shown or kept, as Alpine stat
 names and gtag commands are shown under every policy, because without them the list says
 nothing. The pushes of earlier pages are kept in the tab's session storage, already cleaned,
 and not at all under the `none` policy.
+
+### Web Vitals
+
+LCP, CLS and INP, with TTFB and FCP, each rated **good**, **needs improvement** or **poor**
+against Google's thresholds. The sidebar counts the poor ones.
+
+- **Largest Contentful Paint element**: the biggest thing drawn before the first input, with
+  its image URL when it is one. Point at the row to outline it on the page; click it to
+  scroll to it.
+- **Slowest interaction**: the click, tap or key press INP is taken from, and the element it
+  landed on. INP is the 98th percentile, so on a page used a lot one slow interaction in fifty
+  is forgiven.
+- **Layout shifts**: every shift not caused by input, with the elements that moved. CLS is the
+  worst burst of shifts (shifts less than a second apart, for at most five seconds), not all
+  of them added up, and the shifts in that burst are marked **counts for CLS**.
+
+The numbers update as the page is used: CLS and INP keep changing for as long as the page is
+open. They are read from the browser's own performance entries, including the ones from
+before the bar loaded. One exception: the browser only keeps an interaction from before then
+when it took 104 ms or more. A quicker one is counted, but not shown, and is good anyway.
+
+Clicks on the bar, and shifts only the bar took part in, are left out. Even so, this is one
+visit on your machine, with a debug toolbar on the page. Google's field data is the 75th
+percentile of real visits, so read these as a way to find the cause, not as the score.
+
+Not every browser measures every metric. One that the browser cannot measure says so
+rather than showing zero; Chrome and Edge measure all five.
 
 Only summaries travel with the page, about 1.5 kB. A section's contents are fetched the
 first time you open it.

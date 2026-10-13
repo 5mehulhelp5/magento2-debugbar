@@ -68,6 +68,8 @@ that a fix helped rather than that it looks like it should have.
   response sent one. Do not report a page as free of SEO problems from a profile.
 * **Data layer findings are not in a profile either.** The Data layer section reads
   `window.dataLayer` in the browser. Nothing a page pushed reaches these tools.
+* **Nor are Web Vitals.** LCP, CLS and INP are measured by the browser the page is open in.
+  A profile's duration is the server's time, not LCP or TTFB as a visitor sees them.
 
 ## Explain the result
 
