@@ -691,6 +691,71 @@ export function quickLinks(url) {
   ]
 }
 
+/** Why SeoCollector kept nothing, by the reason it recorded. */
+const SERVER_SKIPPED = {
+  not_frontend: 'the request was not a storefront page',
+  not_html: 'the response was not HTML',
+  too_large: 'the response was too large to read',
+  unreadable: 'the server could not parse the HTML',
+}
+
+/**
+ * Text both sides cut, at different lengths: the server keeps more than the bar. Compared
+ * up to the shorter cut, so a long title is not reported as changed because of that.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+function comparableText(value) {
+  return String(value ?? '').replace(/\s+/g, ' ').trim().replace(/\.\.\.$/, '').slice(0, MAX_TEXT)
+}
+
+/**
+ * What the server sent against what the page holds now, after every script has run.
+ *
+ * A crawler that does not run JavaScript sees the server's side only, so a canonical, a
+ * robots tag or a block of structured data that a script adds or changes is something it
+ * never gets. The server's side is SeoCollector's summary for this page's own request.
+ *
+ * @param {object|undefined} server the `seo` summary in the page's profile
+ * @param {object} model what inspectPage read from the live page
+ * @returns {{available: boolean, reason: string, rows: Array<object>, changed: number}}
+ */
+export function serverVersusLive(server, model) {
+  const none = (reason) => ({ available: false, reason, rows: [], changed: 0 })
+
+  if (!server || typeof server !== 'object' || !('title' in server || 'skipped' in server)) {
+    return none('The server kept no SEO record for this page.')
+  }
+
+  if (server.skipped) {
+    return none(`The server kept no SEO record: ${SERVER_SKIPPED[server.skipped] || server.skipped}.`)
+  }
+
+  const h1 = model.headings.items.filter((item) => item.level === 1)
+  const text = (key, label, live) => [key, label, String(server[key] ?? ''), live, comparableText]
+  const count = (key, label, live) => [key, label, Number(server[key] ?? 0), live, Number]
+  const rows = [
+    text('title', 'Title', model.overview.title.value),
+    text('description', 'Meta description', model.overview.description.value),
+    text('canonical', 'Canonical', model.overview.canonical.href),
+    text('robots', 'Robots meta', model.overview.robots.meta),
+    text('lang', 'Language', model.overview.lang.value),
+    text('h1', 'H1', h1.length > 0 ? h1[0].text : ''),
+    count('h1_count', 'H1 count', h1.length),
+    count('heading_count', 'Headings', model.headings.items.length),
+    count('json_ld_count', 'JSON-LD blocks', model.schema.blocks.length),
+  ].map(([key, label, serverValue, live, same]) => ({
+    key,
+    label,
+    server: serverValue,
+    live,
+    changed: same(serverValue) !== same(live),
+  }))
+
+  return { available: true, reason: '', rows, changed: rows.filter((row) => row.changed).length }
+}
+
 /**
  * Everything the section shows, from one read of the page.
  *

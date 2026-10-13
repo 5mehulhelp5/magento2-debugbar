@@ -895,6 +895,38 @@ export const template = `
             { label: 'Words', value: 'seo.overview.words' },
           ])}
 
+          <div class="ndb-seo-block">
+            <div class="ndb-subhead">
+              <div>
+                <h3>Server HTML against the live page</h3>
+                <p data-ndb-show="seoServer.available && seoServer.changed === 0">
+                  Scripts changed none of these, so a crawler that does not run JavaScript
+                  reads the same.
+                </p>
+                <p data-ndb-show="seoServer.available && seoServer.changed > 0">
+                  <span data-ndb-text="plural(seoServer.changed, 'value differs', 'values differ')"></span>.
+                  A crawler that does not run JavaScript only gets the server's side.
+                </p>
+                <p data-ndb-show="!seoServer.available" data-ndb-text="seoServer.reason"></p>
+              </div>
+            </div>
+            <table class="ndb-table" data-ndb-show="seoServer.available">
+              <thead><tr><th></th><th>Server sent</th><th>Live page</th></tr></thead>
+              <tbody>
+                <template data-ndb-for="row in seoServer.rows" data-ndb-bind:key="row.key">
+                  <tr>
+                    <td>
+                      <span data-ndb-text="row.label"></span>
+                      <span class="ndb-tag is-warn" data-ndb-show="row.changed">changed</span>
+                    </td>
+                    <td class="ndb-dim" data-ndb-text="row.server === '' ? 'none' : row.server"></td>
+                    <td data-ndb-text="row.live === '' ? 'none' : row.live"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
           <template data-ndb-if="seo.overview.hreflang.items.length > 0">
           <div class="ndb-seo-block">
             <div class="ndb-subhead">
@@ -1625,6 +1657,41 @@ export const template = `
                 </li>
               </template>
             </ol>
+
+            <template data-ndb-if="comparison.seo && comparison.seo.available">
+            <div>
+              <div class="ndb-subhead">
+                <div>
+                  <h3>SEO, as the server sent it</h3>
+                  <p>
+                    <span data-ndb-text="comparison.seo.changed.length"></span> changed,
+                    <span data-ndb-text="comparison.seo.unchanged"></span> the same.
+                  </p>
+                </div>
+              </div>
+
+              <table class="ndb-table ndb-compare" data-ndb-show="comparison.seo.changed.length > 0">
+                <thead>
+                  <tr>
+                    <th>Fact</th>
+                    <th>Before</th>
+                    <th>Now</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template data-ndb-for="row in comparison.seo.changed" data-ndb-bind:key="row.key">
+                    <tr>
+                      <td data-ndb-text="row.label"></td>
+                      <td class="ndb-dim" data-ndb-text="row.baseline || 'none'"></td>
+                      <td data-ndb-text="row.subject || 'none'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            </template>
+            <p class="ndb-note" data-ndb-show="comparison.seo && !comparison.seo.available"
+               data-ndb-text="comparison.seo && comparison.seo.reason"></p>
 
             <div class="ndb-subhead">
               <div>
