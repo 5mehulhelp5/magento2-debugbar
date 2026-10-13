@@ -235,6 +235,40 @@ class RulesTest extends TestCase
     }
 
     #[Test]
+    public function aSlowRequestPointsAtTheSectionThatTookTheMostTime(): void
+    {
+        $finding = (new SlowRequestRule($this->threshold(1000.0)))->apply($this->profile([
+            'queries' => ['summary' => ['duration_ms' => 640.0]],
+            'blocks' => ['summary' => ['duration_ms' => 210.0]],
+            'observers' => ['summary' => ['duration_ms' => 35.0]],
+        ], 1200.0))[0]->toArray();
+
+        $this->assertSame('queries', $finding['action']['section']);
+        $this->assertSame('Review queries', $finding['action']['label']);
+    }
+
+    #[Test]
+    public function aSlowCacheHitPointsAtThePageCacheNotAtEmptyBlocks(): void
+    {
+        // A full page cache hit runs no block, query or observer, so "Review blocks"
+        // opened an empty list under a "No clear problem found" banner.
+        $finding = (new SlowRequestRule($this->threshold(1000.0)))->apply($this->profile([
+            'pagecache' => ['summary' => ['served_from_cache' => true, 'status' => 'hit']],
+        ], 1094.0))[0]->toArray();
+
+        $this->assertSame('pagecache', $finding['action']['section']);
+        $this->assertStringContainsString('full page cache answered', $finding['why']);
+    }
+
+    #[Test]
+    public function aSlowRequestWithNothingMeasuredOffersNoButton(): void
+    {
+        $finding = (new SlowRequestRule($this->threshold(1000.0)))->apply($this->profile([], 1500.0))[0]->toArray();
+
+        $this->assertNull($finding['action']);
+    }
+
+    #[Test]
     public function aProductPageThatWasNotCachedIsAWarningNamingTheReason(): void
     {
         $findings = (new PageNotCachedRule())->apply($this->profile(['pagecache' => ['summary' => [

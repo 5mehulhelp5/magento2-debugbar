@@ -940,6 +940,10 @@
   font-size: 14px;
 }
 
+.ndb-facts + .ndb-note {
+  margin-top: 16px;
+}
+
 .ndb-list {
   list-style: none;
   margin: 0;
