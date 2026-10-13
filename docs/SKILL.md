@@ -72,7 +72,10 @@ that a fix helped rather than that it looks like it should have.
   `total_ms` on a container is just the page.
 * **Ask `get_debug_seo` what a page told search engines.** It is the HTML the server sent:
   title, description, canonical, robots meta and header, hreflang, headings, social tags and
-  structured data types, with the `seo.*` findings. What JavaScript changed afterwards is not
+  structured data types, with the `seo.*` findings. `sources` says where each value came
+  from (attribute, CMS field or setting) and `matches: false` marks one that something past
+  Magento's own rule set: look for a plugin, observer, layout XML or SEO extension, not at
+  the attribute. What JavaScript changed afterwards is not
   in it, and neither are the bar's live SEO checks (image sizes, link problems, whether a
   rich result is complete), so do not report a page as free of SEO problems from a profile.
   A `skipped` value means the response held no storefront page to read.

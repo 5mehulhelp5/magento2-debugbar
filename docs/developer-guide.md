@@ -202,7 +202,20 @@ storefront request's route and id parameter and points at the admin route
 `siteation_debugbar/entity/edit`. It builds that URL from configuration rather than through
 the backend URL model, whose session would otherwise start inside the storefront's.
 `Controller\Adminhtml\Entity\Edit` is a secret key public action that checks the target's own
-ACL resource and redirects through the backend URL model, which adds the key.
+ACL resource and redirects through the backend URL model, which adds the key. Besides the
+entities it has two settings targets, `design_config` and `catalog_config`, for the screens
+the SEO defaults and canonical switches live on; `AdminEditLink::forTarget()` links to any
+of them.
+
+`Model\SeoSources` says where each SEO value came from. It follows the rule Magento's own code
+uses (`Catalog\Helper\Product\View`, `Catalog\Block\Category\View`, `Cms\Block\Page`, and
+`Framework\View\Page\Config` and `Title` for the defaults and the title prefix and suffix),
+predicts the value, and compares it with what SeoCollector read. The product and category
+come from the registry, as the controller left them, so there is no dependency on the
+catalog module and nothing on a full page cache hit. When Magento changes one of those
+rules, change it here. It also states the product's final price in both tax modes and
+whether it is salable, which `SeoSchemaOfferRule` checks the structured data's offers
+against.
 
 ## MCP
 
@@ -221,10 +234,10 @@ for out of the response rather than pushing it over.
 ```
 vendor/bin/phpcs  --standard=<pkg>/phpcs.xml.dist <pkg>
 vendor/bin/phpstan analyse -c <pkg>/phpstan.neon.dist
-vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 271 tests
+vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 288 tests
 <pkg>/dev/smoke https://your-store.test admin                  # 31 assertions over HTTP
 cd <pkg>/src-js && npm test                                    # 163, no store needed
-cd <pkg>/src-js && npm run test:browser                        # 28, needs the store up
+cd <pkg>/src-js && npm run test:browser                        # 29, needs the store up
 ```
 
 **The supported PHP range is checked separately**, because `phpstan.neon.dist` has to keep

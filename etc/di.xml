@@ -119,6 +119,7 @@
                 <item name="seo_canonical" xsi:type="object">Siteation\DebugBar\Analysis\Rule\SeoCanonicalRule</item>
                 <item name="seo_noindex" xsi:type="object">Siteation\DebugBar\Analysis\Rule\SeoNoindexRule</item>
                 <item name="seo_heading" xsi:type="object">Siteation\DebugBar\Analysis\Rule\SeoHeadingRule</item>
+                <item name="seo_schema_offer" xsi:type="object">Siteation\DebugBar\Analysis\Rule\SeoSchemaOfferRule</item>
                 <item name="collector_truncated" xsi:type="object">Siteation\DebugBar\Analysis\Rule\TruncatedCollectorRule</item>
             </argument>
         </arguments>
