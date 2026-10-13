@@ -19,6 +19,9 @@ use Siteation\DebugBar\Model\Config;
  *
  * Empty stays valid. That is the developer machine, where there is nobody to keep out, and
  * Config already refuses to enable in any other mode without one.
+ *
+ * The field is obscure, so the admin never shows the key. A page saved without touching it
+ * posts the mask back, which means "unchanged", the same as Magento's own Encrypted fields.
  */
 class AccessKey extends Value
 {
@@ -29,6 +32,12 @@ class AccessKey extends Value
     public function beforeSave()
     {
         $value = trim((string) $this->getValue());
+
+        if (preg_match('/^\*+$/', $value)) {
+            $this->_dataSaveAllowed = false;
+
+            return parent::beforeSave();
+        }
 
         if ($value !== '' && strlen($value) < Config::MIN_ACCESS_KEY_LENGTH) {
             throw new LocalizedException(__(
