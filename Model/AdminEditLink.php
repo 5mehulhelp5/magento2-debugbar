@@ -80,6 +80,19 @@ class AdminEditLink
             return '';
         }
 
+        return $this->forTarget($type, $id);
+    }
+
+    /**
+     * A link to one of the admin route's targets, for the store view this request is in.
+     *
+     * @param string $type a target Controller\Adminhtml\Entity\Edit knows: an entity type, or
+     *     a configuration screen
+     * @param int $id the entity's id, 0 for a target that has none or resolves its own
+     * @return string the admin URL, or '' when the store cannot be read
+     */
+    public function forTarget(string $type, int $id = 0): string
+    {
         try {
             $storeId = (int) $this->storeManager->getStore()->getId();
         } catch (Throwable) {

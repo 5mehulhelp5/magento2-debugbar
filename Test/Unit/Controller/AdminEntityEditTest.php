@@ -16,6 +16,7 @@ use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Siteation\DebugBar\Controller\Adminhtml\Entity\Edit;
+use Siteation\DebugBar\Model\HomePage;
 
 /**
  * The admin half of "Edit this page in the admin": where it sends you, and when it refuses.
@@ -50,6 +51,39 @@ class AdminEntityEditTest extends TestCase
         $this->edit(['type' => 'cms_page', 'id' => '5', 'store' => '3'])->execute();
 
         $this->assertSame(['cms/page/edit', ['page_id' => 5]], $this->redirectedTo);
+    }
+
+    #[Test]
+    public function aDesignSettingOpensTheStoreViewsDesignConfiguration(): void
+    {
+        $this->edit(['type' => 'design_config', 'id' => '0', 'store' => '3'])->execute();
+        $this->assertSame(['theme/design_config/edit', ['scope' => 'stores', 'scope_id' => 3]], $this->redirectedTo);
+
+        // With one store view the grid is the honest answer: which row holds the value
+        // depends on where the merchant saved it.
+        $this->edit(['type' => 'design_config', 'id' => '0', 'store' => '1'], singleStore: true)->execute();
+        $this->assertSame(['theme/design_config/index', []], $this->redirectedTo);
+    }
+
+    #[Test]
+    public function aCatalogSettingOpensTheCatalogSectionInTheStoreView(): void
+    {
+        $this->edit(['type' => 'catalog_config', 'id' => '0', 'store' => '3'])->execute();
+        $this->assertSame(
+            ['adminhtml/system_config/edit', ['section' => 'catalog', 'store' => 3]],
+            $this->redirectedTo
+        );
+
+        $this->edit(['type' => 'catalog_config', 'id' => '0', 'store' => '1'], singleStore: true)->execute();
+        $this->assertSame(['adminhtml/system_config/edit', ['section' => 'catalog']], $this->redirectedTo);
+    }
+
+    #[Test]
+    public function aSettingIsRefusedToARoleThatCannotOpenItsScreen(): void
+    {
+        $this->edit(['type' => 'catalog_config', 'id' => '0', 'store' => '3'], allowed: false)->execute();
+
+        $this->assertSame(['admin/dashboard/index', []], $this->redirectedTo);
     }
 
     #[Test]
@@ -125,6 +159,6 @@ class AdminEntityEditTest extends TestCase
         $pages = $this->createStub(PageResource::class);
         $pages->method('checkIdentifier')->willReturn('11');
 
-        return new Edit($context, $scopeConfig, $stores, $pages);
+        return new Edit($context, $stores, new HomePage($scopeConfig, $pages));
     }
 }

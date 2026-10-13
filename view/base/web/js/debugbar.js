@@ -8467,6 +8467,19 @@ function Uh() {
       return Ku(this.pageProfile.sections?.seo?.summary, this.seo);
     },
     /**
+     * Where the server got each value: the attribute, CMS field or setting, with a link to
+     * edit it. Only for this page, whose payload is the one loaded while it is in view.
+     *
+     * @returns {Array<object>}
+     */
+    get seoSources() {
+      return !this.pageProfile.id || this.profile.id !== this.pageProfile.id ? [] : this.payloads.seo?.sources || this.profile.sections?.seo?.payload?.sources || [];
+    },
+    /** @returns {boolean} a page the server would have sources for, with none recorded */
+    get seoSourcesMissing() {
+      return !!this.pageProfile.sections?.seo?.summary?.page_type && !this.loading && this.seoSources.length === 0;
+    },
+    /**
      * Read once the page has loaded, so images have their real sizes and the sidebar count
      * is there before the section is opened. Opening it reads again, since a page changes.
      */
@@ -9955,6 +9968,47 @@ const Fh = `
                     </td>
                     <td class="ndb-dim" data-ndb-text="row.server === '' ? 'none' : row.server"></td>
                     <td data-ndb-text="row.live === '' ? 'none' : row.live"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="ndb-seo-block" data-ndb-show="seoSources.length > 0 || seoSourcesMissing">
+            <div class="ndb-subhead">
+              <div>
+                <h3>Where each value came from</h3>
+                <p data-ndb-show="seoSources.length > 0">
+                  The attribute, CMS field or setting Magento takes it from. Marked when the page
+                  does not match it: then a plugin, observer, layout XML, theme or SEO extension
+                  set the value instead.
+                </p>
+                <p data-ndb-show="seoSourcesMissing">
+                  Not recorded for this request. A page from the full page cache never loads the
+                  product or category behind it; reload with the cache off to see where each
+                  value came from.
+                </p>
+              </div>
+            </div>
+            <table class="ndb-table" data-ndb-show="seoSources.length > 0">
+              <thead><tr><th></th><th>Comes from</th><th></th></tr></thead>
+              <tbody>
+                <template data-ndb-for="row in seoSources" data-ndb-bind:key="row.field">
+                  <tr>
+                    <td class="ndb-fact">
+                      <span data-ndb-text="row.label"></span>
+                      <span class="ndb-tag is-warn" data-ndb-show="row.matches === false">set elsewhere</span>
+                    </td>
+                    <td>
+                      <span data-ndb-text="row.source"></span>
+                      <code class="ndb-mono ndb-source-key" data-ndb-show="row.key" data-ndb-text="row.key"></code>
+                      <small class="ndb-dim ndb-source-key" data-ndb-show="row.matches === false"
+                             data-ndb-text="'Magento would give: ' + (row.expected || 'nothing')"></small>
+                    </td>
+                    <td class="ndb-action">
+                      <a class="ndb-chip" data-ndb-show="row.edit" data-ndb-bind:href="row.edit"
+                         target="_blank" rel="noopener">Edit</a>
+                    </td>
                   </tr>
                 </template>
               </tbody>

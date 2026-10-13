@@ -6,13 +6,10 @@ namespace Siteation\DebugBar\Controller\Adminhtml\Entity;
 
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
-use Magento\Cms\Model\ResourceModel\Page as PageResource;
 use Magento\Framework\App\Action\HttpGetActionInterface;
-use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Controller\Result\Redirect;
-use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
-use Throwable;
+use Siteation\DebugBar\Model\HomePage;
 
 /**
  * Sends "Edit this page in the admin" from the SEO section to the right edit screen.
@@ -47,7 +44,19 @@ class Edit extends Action implements HttpGetActionInterface
         'cms_home' => ['cms/page/edit', 'page_id', 'Magento_Cms::page', false],
     ];
 
-    private const XML_PATH_HOME_PAGE = 'web/default/cms_home_page';
+    /**
+     * Type => [route, fixed parameters, the resource its screen needs, the store parameter's
+     * name, or null when one store view sends the grid instead].
+     *
+     * The settings an SEO value can come from: the HTML head defaults and robots live in the
+     * design configuration, the canonical switches in the catalog section.
+     */
+    private const SETTINGS = [
+        'design_config' => ['theme/design_config/edit', ['scope' => 'stores'], 'Magento_Config::config_design',
+            'scope_id'],
+        'catalog_config' => ['adminhtml/system_config/edit', ['section' => 'catalog'],
+            'Magento_Catalog::config_catalog', 'store'],
+    ];
 
     /**
      * @var string[]
@@ -56,9 +65,8 @@ class Edit extends Action implements HttpGetActionInterface
 
     public function __construct(
         Context $context,
-        private readonly ScopeConfigInterface $scopeConfig,
         private readonly StoreManagerInterface $storeManager,
-        private readonly PageResource $pageResource
+        private readonly HomePage $homePage
     ) {
         parent::__construct($context);
     }
@@ -69,6 +77,10 @@ class Edit extends Action implements HttpGetActionInterface
         $type = (string) $this->getRequest()->getParam('type');
         $storeId = max(0, (int) $this->getRequest()->getParam('store'));
         $target = self::TARGETS[$type] ?? null;
+
+        if ($target === null && isset(self::SETTINGS[$type])) {
+            return $this->setting($redirect, self::SETTINGS[$type], $storeId);
+        }
 
         if ($target === null) {
             return $this->refuse($redirect, (string) __('The debug bar did not say what to edit.'));
@@ -81,7 +93,7 @@ class Edit extends Action implements HttpGetActionInterface
         }
 
         $id = $type === 'cms_home'
-            ? $this->homePageId($storeId)
+            ? $this->homePage->id($storeId)
             : (int) $this->getRequest()->getParam('id');
 
         if ($id <= 0) {
@@ -101,32 +113,27 @@ class Edit extends Action implements HttpGetActionInterface
     }
 
     /**
-     * The home page is named in configuration rather than in the URL, as an identifier or as
-     * "identifier|id" when two pages share one. Magento's own Cms\Helper\Page reads it the
-     * same way.
+     * @param array{0: string, 1: array<string, string>, 2: string, 3: string} $setting
      */
-    private function homePageId(int $storeId): int
+    private function setting(Redirect $redirect, array $setting, int $storeId): Redirect
     {
-        $value = (string) $this->scopeConfig->getValue(
-            self::XML_PATH_HOME_PAGE,
-            ScopeInterface::SCOPE_STORE,
-            $storeId
-        );
-        $delimiter = strrpos($value, '|');
+        [$route, $params, $resource, $storeParameter] = $setting;
 
-        if ($delimiter !== false) {
-            return (int) substr($value, $delimiter + 1);
+        if (!$this->_authorization->isAllowed($resource)) {
+            return $this->refuse($redirect, (string) __('Your role is not allowed to edit this.'));
         }
 
-        if ($value === '') {
-            return 0;
+        $single = $storeId <= 0 || $this->storeManager->isSingleStoreMode();
+
+        if ($storeParameter === 'scope_id') {
+            // The design configuration is a grid of scopes. With one store view, which row
+            // holds the value depends on where it was saved, so the grid is the answer.
+            return $single
+                ? $redirect->setPath('theme/design_config/index', [])
+                : $redirect->setPath($route, [...$params, $storeParameter => $storeId]);
         }
 
-        try {
-            return (int) $this->pageResource->checkIdentifier($value, $storeId);
-        } catch (Throwable) {
-            return 0;
-        }
+        return $redirect->setPath($route, $single ? $params : [...$params, $storeParameter => $storeId]);
     }
 
     private function refuse(Redirect $redirect, string $message): Redirect

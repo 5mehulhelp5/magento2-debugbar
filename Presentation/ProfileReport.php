@@ -277,7 +277,41 @@ class ProfileReport
             $lines[] = sprintf('| %s | %s |', $label, $value);
         }
 
-        return implode("\n", $lines);
+        return implode("\n", [...$lines, ...$this->sources($profile)]);
+    }
+
+    /**
+     * Where each value came from, and which ones something past Magento's own rule set.
+     *
+     * @param array<string, mixed> $profile
+     * @return list<string>
+     */
+    private function sources(array $profile): array
+    {
+        $sources = $profile['sections']['seo']['payload']['sources'] ?? [];
+
+        if (!is_array($sources) || $sources === []) {
+            return [];
+        }
+
+        $lines = ['', 'Where each value came from:', ''];
+
+        foreach ($sources as $row) {
+            $lines[] = sprintf(
+                '- %s: %s%s%s',
+                $row['label'] ?? '',
+                $row['source'] ?? '',
+                ($row['key'] ?? '') === '' ? '' : sprintf(' `%s`', $row['key']),
+                ($row['matches'] ?? null) === false
+                    ? sprintf(
+                        '. The page does not match it (expected "%s"), so something else set this value.',
+                        $this->label((string) ($row['expected'] ?? ''))
+                    )
+                    : ''
+            );
+        }
+
+        return $lines;
     }
 
     /** Page text in a table cell: one line, no pipe to end the cell early. */

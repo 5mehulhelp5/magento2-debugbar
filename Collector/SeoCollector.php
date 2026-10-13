@@ -14,6 +14,7 @@ use Magento\Framework\App\State;
 use Magento\Framework\HTTP\PhpEnvironment\Response as ReadableResponse;
 use Siteation\DebugBar\Model\Clock;
 use Siteation\DebugBar\Model\Redactor;
+use Siteation\DebugBar\Model\SeoSources;
 use Throwable;
 
 /**
@@ -51,6 +52,12 @@ class SeoCollector extends AbstractCollector
     /** Per list: alternates, social tags, structured data types. */
     private const MAX_LIST = 50;
 
+    /** Offers in the structured data: a product page has one, or one per variant. */
+    private const MAX_OFFERS = 10;
+
+    /** The offer types whose price and availability describe what the page sells. */
+    private const OFFER_TYPES = ['Offer', 'AggregateOffer'];
+
     /** The same pages PageCacheCollector expects to be cached: the ones a shop wants found. */
     private const PAGE_TYPES = [
         'cms_index_index' => 'cms',
@@ -70,6 +77,7 @@ class SeoCollector extends AbstractCollector
         Clock $clock,
         private readonly HttpRequest $httpRequest,
         private readonly State $appState,
+        private readonly SeoSources $sources,
         int $maxItems = 200
     ) {
         parent::__construct($redactor, $clock, $maxItems);
@@ -116,6 +124,14 @@ class SeoCollector extends AbstractCollector
         }
 
         $this->read($document, $this->header($response, 'X-Robots-Tag'));
+
+        // What set each value, read from the entity the controller loaded. A page from the
+        // full page cache was never routed and loaded none, so it has no sources.
+        $this->details['sources'] = $this->sources->explain($this->record);
+
+        if ($this->record['page_type'] === 'product' && $action === 'catalog_product_view') {
+            $this->record['product'] = $this->sources->product();
+        }
     }
 
     /**
@@ -218,6 +234,7 @@ class SeoCollector extends AbstractCollector
             'schema_types' => $schema['types'],
             'json_ld_count' => $schema['json_ld_count'],
             'json_ld_invalid' => $schema['json_ld_invalid'],
+            'offers' => $schema['offers'],
         ];
 
         $this->details = [
@@ -325,11 +342,13 @@ class SeoCollector extends AbstractCollector
      * The structured data types the server sent, from JSON-LD and microdata. Whether each
      * one is complete is the live Schema view's job; this is what the server committed to.
      *
-     * @return array{types: list<string>, json_ld_count: int, json_ld_invalid: int}
+     * @return array{types: list<string>, json_ld_count: int, json_ld_invalid: int,
+     *     offers: list<array{price: string, low: string, high: string, currency: string, availability: string}>}
      */
     private function schema(DOMXPath $xpath): array
     {
         $types = [];
+        $offers = [];
         $count = 0;
         $invalid = 0;
 
@@ -349,11 +368,18 @@ class SeoCollector extends AbstractCollector
             }
 
             array_push($types, ...$this->typesIn($data));
+            array_push($offers, ...$this->offersIn($data));
         }
 
         foreach ($this->nodes($xpath, '//*[@itemscope][@itemtype][not(ancestor::template)]') as $item) {
-            foreach (preg_split('/\s+/', trim($item->getAttribute('itemtype'))) ?: [] as $type) {
-                $types[] = $this->shortType($type);
+            $itemTypes = array_map(
+                fn (string $type): string => $this->shortType($type),
+                preg_split('/\s+/', trim($item->getAttribute('itemtype'))) ?: []
+            );
+            array_push($types, ...$itemTypes);
+
+            if (array_intersect($itemTypes, self::OFFER_TYPES) !== []) {
+                $offers[] = $this->microdataOffer($xpath, $item);
             }
         }
 
@@ -363,6 +389,91 @@ class SeoCollector extends AbstractCollector
             'types' => array_slice($types, 0, self::MAX_LIST),
             'json_ld_count' => $count,
             'json_ld_invalid' => $invalid,
+            'offers' => array_slice($offers, 0, self::MAX_OFFERS),
+        ];
+    }
+
+    /**
+     * Every offer in a JSON-LD value, through @graph and nested entities.
+     *
+     * @return list<array{price: string, low: string, high: string, currency: string, availability: string}>
+     */
+    private function offersIn(mixed $data, int $depth = 0): array
+    {
+        if (!is_array($data) || $depth > 8) {
+            return [];
+        }
+
+        $offers = [];
+        $types = array_map(
+            fn (mixed $type): string => is_string($type) ? $this->shortType($type) : '',
+            (array) ($data['@type'] ?? [])
+        );
+
+        if (array_intersect($types, self::OFFER_TYPES) !== []) {
+            $offers[] = $this->offer(
+                $data['price'] ?? '',
+                $data['lowPrice'] ?? '',
+                $data['highPrice'] ?? '',
+                $data['priceCurrency'] ?? '',
+                $data['availability'] ?? ''
+            );
+        }
+
+        foreach ($data as $key => $value) {
+            if ($key !== '@type' && is_array($value)) {
+                array_push($offers, ...$this->offersIn($value, $depth + 1));
+            }
+        }
+
+        return $offers;
+    }
+
+    /**
+     * @return array{price: string, low: string, high: string, currency: string, availability: string}
+     */
+    private function microdataOffer(DOMXPath $xpath, DOMElement $item): array
+    {
+        $property = function (string $name) use ($xpath, $item): string {
+            // The item's own properties, not those of an item nested inside it.
+            $found = $xpath->query(sprintf('.//*[@itemprop="%s"][1]', $name), $item);
+            $element = $found === false ? null : $found->item(0);
+
+            if (!$element instanceof DOMElement) {
+                return '';
+            }
+
+            foreach (['content', 'href', 'value'] as $attribute) {
+                if ($element->hasAttribute($attribute)) {
+                    return $element->getAttribute($attribute);
+                }
+            }
+
+            return (string) $element->textContent;
+        };
+
+        return $this->offer(
+            $property('price'),
+            $property('lowPrice'),
+            $property('highPrice'),
+            $property('priceCurrency'),
+            $property('availability')
+        );
+    }
+
+    /**
+     * @return array{price: string, low: string, high: string, currency: string, availability: string}
+     */
+    private function offer(mixed $price, mixed $low, mixed $high, mixed $currency, mixed $availability): array
+    {
+        $scalar = fn (mixed $value): string => is_scalar($value) ? $this->clip((string) $value, 50) : '';
+
+        return [
+            'price' => $scalar($price),
+            'low' => $scalar($low),
+            'high' => $scalar($high),
+            'currency' => $scalar($currency),
+            'availability' => $this->shortType($scalar($availability)),
         ];
     }
 

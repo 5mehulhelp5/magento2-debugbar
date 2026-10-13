@@ -103,8 +103,8 @@ async function closeToDock(page) {
 /**
  * @param {import('@playwright/test').Page} page
  */
-async function openBar(page) {
-  await page.goto(PAGE)
+async function openBar(page, path = PAGE) {
+  await page.goto(path)
   await page.waitForFunction(
     () => document.querySelector('siteation-debugbar')?.shadowRoot?.querySelector('.ndb')
       ?._x_dataStack !== undefined
@@ -679,6 +679,34 @@ test.describe('the SEO section', () => {
     await expect(robots.locator('.ndb-tag.is-warn')).toHaveText('changed')
     await expect(robots).toContainText('noindex')
     expect(await alpineErrors(page)).toEqual([])
+  })
+
+  test('says where each value came from on the home page, and stays out of the way on the cart', async ({ page }) => {
+    // The home page is a CMS page read by its id, so it has sources even from the cache.
+    await openBar(page, '/')
+    await state(page, (data) => { data.section = 'seo'; data.seoTab = 'overview' })
+    await waitForState(page, (data) => !data.loading && Object.keys(data.payloads).length > 0)
+
+    const { sources, missing, pageType } = await state(page, (data) => ({
+      sources: JSON.parse(JSON.stringify(data.seoSources)),
+      missing: data.seoSourcesMissing,
+      pageType: data.pageProfile.sections.seo.summary.page_type || null,
+    }))
+    const block = page.locator('.ndb-seo-block').filter({ hasText: 'Where each value came from' })
+
+    expect(pageType).toBe('cms')
+    expect(missing).toBe(false)
+    expect(sources.map((row) => row.field)).toEqual(['title', 'description', 'h1', 'canonical', 'robots'])
+    await expect(block).toBeVisible()
+    await expect(block.locator('tbody tr')).toHaveCount(5)
+    expect(await alpineErrors(page)).toEqual([])
+
+    // The cart has no entity behind it, so the block stays out of the way.
+    await openBar(page)
+    await state(page, (data) => { data.section = 'seo'; data.seoTab = 'overview' })
+    await waitForState(page, (data) => !data.loading && Object.keys(data.payloads).length > 0)
+    expect(await state(page, (data) => data.seoSources.length + Number(data.seoSourcesMissing))).toBe(0)
+    await expect(block).toBeHidden()
   })
 
   test('reads structured data the page gains, draws it, and points at a microdata item', async ({ page }) => {

@@ -204,7 +204,13 @@ class McpProfilePresenterTest extends TestCase
                 'request' => ['summary' => ['method' => 'GET', 'path' => '/p.html', 'status' => 200]],
                 'seo' => [
                     'summary' => ['title' => 'P', 'h1_count' => 2],
-                    'payload' => ['canonicals' => ['/p.html'], 'hreflang' => [], 'social' => [], 'items' => $headings],
+                    'payload' => [
+                        'canonicals' => ['/p.html'],
+                        'hreflang' => [],
+                        'social' => [],
+                        'sources' => [['field' => 'title', 'key' => 'meta_title', 'matches' => true]],
+                        'items' => $headings,
+                    ],
                 ],
             ],
         ];
@@ -216,6 +222,7 @@ class McpProfilePresenterTest extends TestCase
         $this->assertCount(5, $result['headings']);
         $this->assertSame(30, $result['headings_total']);
         $this->assertSame(['seo.h1_multiple'], array_column($result['findings'], 'id'));
+        $this->assertSame(['meta_title'], array_column($result['sources'], 'key'), 'where each value came from');
     }
 
     #[Test]

@@ -157,6 +157,30 @@ class ProfileReportTest extends TestCase
     }
 
     #[Test]
+    public function theSeoBlockSaysWhereEachValueCameFromAndWhichOnesSomethingElseSet(): void
+    {
+        $profile = $this->profile();
+        $profile['sections']['seo'] = [
+            'summary' => ['title' => 'Bikes', 'title_length' => 5],
+            'payload' => ['sources' => [
+                ['label' => 'Title', 'source' => 'Category attribute', 'key' => 'meta_title',
+                    'expected' => 'Bikes', 'matches' => true],
+                ['label' => 'Robots meta', 'source' => 'Setting', 'key' => 'design/search_engine_robots/default_robots',
+                    'expected' => 'INDEX,FOLLOW', 'matches' => false],
+            ]],
+        ];
+
+        $markdown = $this->report()->render($profile);
+
+        $this->assertStringContainsString('- Title: Category attribute `meta_title`' . "\n", $markdown);
+        $this->assertStringContainsString(
+            '- Robots meta: Setting `design/search_engine_robots/default_robots`. The page does not match it '
+                . '(expected "INDEX,FOLLOW"), so something else set this value.',
+            $markdown
+        );
+    }
+
+    #[Test]
     public function aResponseWithNoPageHasNoSeoBlock(): void
     {
         $profile = $this->profile();
