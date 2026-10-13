@@ -96,6 +96,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the history or a comparison used to save one more profile each time and push the real
   ones out of the twenty kept.
 
+- A cache removal is recorded only while the cache section is collected, and a recorder
+  that fails no longer breaks the removal itself
+  ([#31](https://github.com/Siteation/magento2-debugbar/issues/31)). Loads and saves
+  already worked this way.
+
 - In the admin, the bar's sections, History and Compare said "Could not load profile details:
   The response was not JSON". Its requests went to admin addresses that had no controller,
   so the admin answered with its 404 page. Those addresses now answer.

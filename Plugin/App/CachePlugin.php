@@ -81,11 +81,11 @@ class CachePlugin
         $startedAt = microtime(true);
         $result = $proceed($identifier);
 
-        $this->cache->recordOperation(
+        $this->manager->quietly('cache', fn () => $this->cache->recordOperation(
             'remove',
             $identifier,
             (microtime(true) - $startedAt) * 1000
-        );
+        ));
 
         return $result;
     }
