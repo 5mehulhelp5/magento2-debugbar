@@ -530,6 +530,7 @@ test.describe('the bar', () => {
     expect(await state(page, (data) => data.compareError)).toBe('')
 
     await expect(page.locator('.ndb-compare tbody tr').first()).toBeVisible()
+    expect(await state(page, (data) => typeof data.comparison.seo.available)).toBe('boolean')
     expect(await alpineErrors(page)).toEqual([])
   })
 
@@ -645,6 +646,39 @@ test.describe('the SEO section', () => {
     await waitForState(page, (data) => data.section === 'seo' && data.seoTab === 'headings')
 
     expect(await ourAlpineErrors(page)).toEqual([])
+  })
+
+  test('names what a script changed after the server sent the page', async ({ page }) => {
+    await openBar(page)
+    await state(page, (data) => { data.section = 'seo'; data.seoTab = 'overview' })
+    await waitForState(page, (data) => data.seo.overview.title.value !== '')
+
+    const changedKeys = () => state(page, (data) => data.seoServer.rows
+      .filter((row) => row.changed).map((row) => row.key))
+    const before = await changedKeys()
+
+    expect(await state(page, (data) => data.seoServer.available)).toBe(true)
+    expect(before).not.toContain('title')
+    expect(before).not.toContain('robots')
+
+    await page.evaluate(() => {
+      const meta = document.createElement('meta')
+
+      meta.name = 'robots'
+      meta.content = 'noindex'
+      document.head.appendChild(meta)
+      document.title = `${document.title} | changed by a script`
+    })
+    await state(page, (data) => data.refreshSeo())
+    await waitForState(page, (data) => data.seoServer.rows.some((row) => row.key === 'robots' && row.changed))
+
+    expect(await changedKeys()).toEqual(expect.arrayContaining([...before, 'title', 'robots']))
+
+    const robots = page.locator('.ndb-seo-block tr').filter({ hasText: 'Robots meta' })
+
+    await expect(robots.locator('.ndb-tag.is-warn')).toHaveText('changed')
+    await expect(robots).toContainText('noindex')
+    expect(await alpineErrors(page)).toEqual([])
   })
 
   test('reads structured data the page gains, draws it, and points at a microdata item', async ({ page }) => {

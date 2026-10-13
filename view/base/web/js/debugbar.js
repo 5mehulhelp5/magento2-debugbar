@@ -9949,7 +9949,7 @@ const Fh = `
               <tbody>
                 <template data-ndb-for="row in seoServer.rows" data-ndb-bind:key="row.key">
                   <tr>
-                    <td>
+                    <td class="ndb-fact">
                       <span data-ndb-text="row.label"></span>
                       <span class="ndb-tag is-warn" data-ndb-show="row.changed">changed</span>
                     </td>
@@ -10715,7 +10715,7 @@ const Fh = `
                 <tbody>
                   <template data-ndb-for="row in comparison.seo.changed" data-ndb-bind:key="row.key">
                     <tr>
-                      <td data-ndb-text="row.label"></td>
+                      <td class="ndb-fact" data-ndb-text="row.label"></td>
                       <td class="ndb-dim" data-ndb-text="row.baseline || 'none'"></td>
                       <td data-ndb-text="row.subject || 'none'"></td>
                     </tr>
