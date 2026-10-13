@@ -7,6 +7,7 @@ namespace Siteation\DebugBar\Collector;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
+use Laminas\Http\Header\HeaderInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Framework\App\Response\HttpInterface as HttpResponse;
 use Magento\Framework\App\ResponseInterface;
@@ -587,7 +588,7 @@ class SeoCollector extends AbstractCollector
 
         $header = $response->getHeader($name);
 
-        if ($header === false || $header === null || !method_exists($header, 'getFieldValue')) {
+        if (!$header instanceof HeaderInterface) {
             return '';
         }
 

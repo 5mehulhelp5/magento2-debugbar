@@ -104,7 +104,7 @@ class McpProfilePresenter
 
         $data = $profile['sections'][$section];
         $items = $data['payload']['items'] ?? [];
-        $items = is_array($items) ? $items : [];
+        $items = is_array($items) ? array_values($items) : [];
         $total = count($items);
         $page = array_slice($items, max(0, $cursor), $this->bound($limit));
 
@@ -215,7 +215,7 @@ class McpProfilePresenter
 
         $summary = (array) ($section['summary'] ?? []);
         $payload = (array) ($section['payload'] ?? []);
-        $items = is_array($payload['items'] ?? null) ? $payload['items'] : [];
+        $items = is_array($payload['items'] ?? null) ? array_values($payload['items']) : [];
         $findings = array_values(array_filter(
             is_array($profile['findings'] ?? null) ? $profile['findings'] : [],
             static fn (mixed $finding): bool => is_array($finding) && ($finding['section'] ?? '') === 'seo'
@@ -258,7 +258,7 @@ class McpProfilePresenter
             return $this->notFound($profileId);
         }
 
-        $findings = is_array($profile['findings'] ?? null) ? $profile['findings'] : [];
+        $findings = is_array($profile['findings'] ?? null) ? array_values($profile['findings']) : [];
         $total = count($findings);
         $page = array_slice($findings, 0, $this->bound($limit));
 

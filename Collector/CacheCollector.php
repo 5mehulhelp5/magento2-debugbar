@@ -122,6 +122,6 @@ class CacheCollector extends AbstractCollector
             return $matches[1];
         }
 
-        return preg_split('/[_\-]/', $normalized)[0] ?: 'OTHER';
+        return substr($normalized, 0, strcspn($normalized, '_-')) ?: 'OTHER';
     }
 }

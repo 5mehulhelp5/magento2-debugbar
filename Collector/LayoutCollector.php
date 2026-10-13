@@ -137,22 +137,34 @@ class LayoutCollector extends AbstractCollector
         $index = count($this->handles);
         $this->handles[] = ['handle' => $handle, 'via' => $via, 'layout' => $kind, 'files' => [], 'block_count' => 0];
 
+        $files = [];
+        $blockCount = 0;
+
         foreach ($this->layoutFiles->forHandle($handle) as $file) {
             $xml = $this->layoutFiles->parse($file['path']);
 
-            foreach ($xml === false ? [] : $xml->children() as $child) {
+            foreach ($xml === false ? [] : ($xml->children() ?? []) as $child) {
                 if (strtolower($child->getName()) === 'update' && isset($child['handle'])) {
                     $this->walk((string) $child['handle'], $handle, $layout, $kind, $depth + 1);
                 }
             }
 
-            $this->handles[$index]['files'][] = [
+            $files[] = [
                 'file' => $this->callSites->relativePath($file['path']),
                 'module' => $file['module'],
                 'theme' => $file['theme'],
             ];
-            $this->handles[$index]['block_count'] += $this->credit($handle, $xml, $layout);
+            $blockCount += $this->credit($handle, $xml, $layout);
         }
+
+        // Whole, because walk() above appends to the list this entry sits in.
+        $this->handles[$index] = [
+            'handle' => $handle,
+            'via' => $via,
+            'layout' => $kind,
+            'files' => $files,
+            'block_count' => $blockCount,
+        ];
     }
 
     /**

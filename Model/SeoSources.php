@@ -28,6 +28,9 @@ use Throwable;
  * the page was rendered with, in its store view, without a dependency on the catalog module.
  * A page served from the full page cache was never routed and registered nothing, so it has
  * no sources; a CMS page is read by its id, which the request does carry.
+ *
+ * @phpstan-type SourceRow array{field: string, label: string, from: string, source: string,
+ *     key: string, expected: string|null, served: string, matches: bool|null, edit: string}
  */
 class SeoSources
 {
@@ -59,8 +62,7 @@ class SeoSources
 
     /**
      * @param array<string, mixed> $record SeoCollector's summary of the page that was served
-     * @return list<array{field: string, label: string, from: string, source: string, key: string,
-     *     expected: string|null, served: string, matches: bool|null, edit: string}>
+     * @return list<SourceRow>
      */
     public function explain(array $record): array
     {
@@ -120,7 +122,7 @@ class SeoSources
 
     /**
      * @param array<string, mixed> $record
-     * @return list<array<string, mixed>>
+     * @return list<SourceRow>
      */
     private function catalog(string $type, string $registryKey, string $canonicalSetting, array $record): array
     {
@@ -206,7 +208,7 @@ class SeoSources
 
     /**
      * @param array<string, mixed> $record
-     * @return list<array<string, mixed>>
+     * @return list<SourceRow>
      */
     private function cms(string $type, int $id, array $record): array
     {
@@ -286,7 +288,7 @@ class SeoSources
 
     /**
      * @param array<string, mixed> $record
-     * @return array<string, mixed>
+     * @return SourceRow
      */
     private function description(string $source, string $own, array $record, string $edit): array
     {
@@ -321,7 +323,7 @@ class SeoSources
 
     /**
      * @param array<string, mixed> $record
-     * @return array<string, mixed>
+     * @return SourceRow
      */
     private function robots(array $record): array
     {
@@ -338,8 +340,7 @@ class SeoSources
     }
 
     /**
-     * @return array{field: string, label: string, from: string, source: string, key: string,
-     *     expected: string|null, served: string, matches: bool|null, edit: string}
+     * @return SourceRow
      */
     private function row(
         string $field,

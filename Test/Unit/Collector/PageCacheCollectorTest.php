@@ -159,6 +159,22 @@ class PageCacheCollectorTest extends TestCase
     }
 
     #[Test]
+    public function everyCookieTheResponseSetsIsNamed(): void
+    {
+        // Set-Cookie repeats, and the response's getHeader() hands back only the first.
+        $collector = $this->collector();
+
+        $offered = $this->response('public, max-age=86400, s-maxage=86400');
+        $offered->getHeaders()->addHeaderLine('Set-Cookie', 'PHPSESSID=secret-session-id; path=/');
+        $offered->getHeaders()->addHeaderLine('Set-Cookie', 'private_content_version=abc; path=/');
+        $collector->layout(true, []);
+        $collector->offered($offered);
+        $collector->finalize($this->response('no-store'));
+
+        $this->assertSame(['PHPSESSID', 'private_content_version'], $collector->summary()['set_cookies']);
+    }
+
+    #[Test]
     public function oneLayoutThatRefusesIsEnough(): void
     {
         $collector = $this->collector();

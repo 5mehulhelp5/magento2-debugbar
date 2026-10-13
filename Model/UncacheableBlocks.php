@@ -54,7 +54,7 @@ class UncacheableBlocks
             return [];
         }
 
-        $handles = $layout->getUpdate()->getHandles();
+        $handles = array_values($layout->getUpdate()->getHandles());
         $blocks = [];
 
         foreach (array_keys($names) as $name) {

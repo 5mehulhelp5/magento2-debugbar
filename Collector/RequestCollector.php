@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Siteation\DebugBar\Collector;
 
+use Laminas\Http\Header\HeaderInterface;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Framework\App\Response\HttpInterface as HttpResponse;
 use Magento\Framework\App\ResponseInterface;
@@ -249,7 +250,7 @@ class RequestCollector extends AbstractCollector
 
         $header = $response->getHeader('X-Robots-Tag');
 
-        if ($header === false) {
+        if (!$header instanceof HeaderInterface) {
             return [];
         }
 
@@ -317,6 +318,6 @@ class RequestCollector extends AbstractCollector
 
         $header = $response->getHeader('Content-Type');
 
-        return $header === false ? '' : (string) $header->getFieldValue();
+        return $header instanceof HeaderInterface ? (string) $header->getFieldValue() : '';
     }
 }

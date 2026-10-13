@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Siteation\DebugBar\Collector;
 
+use Laminas\Http\Header\HeaderInterface;
+use Laminas\Http\Header\SetCookie;
 use Magento\Framework\App\Cache\StateInterface as CacheState;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\MaintenanceMode;
@@ -12,6 +14,7 @@ use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Framework\App\Response\HttpInterface as HttpResponse;
 use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\App\State;
+use Magento\Framework\HTTP\PhpEnvironment\Response as ReadableResponse;
 use Siteation\DebugBar\Model\Clock;
 use Siteation\DebugBar\Model\Redactor;
 use Throwable;
@@ -275,7 +278,7 @@ class PageCacheCollector extends AbstractCollector
     {
         $header = $response->getHeader($name);
 
-        if ($header === false || $header === null) {
+        if (!$header instanceof HeaderInterface) {
             return '';
         }
 
@@ -291,16 +294,21 @@ class PageCacheCollector extends AbstractCollector
      */
     private function responseCookies(HttpResponse $response): array
     {
-        $header = $response->getHeader('Set-Cookie');
+        if (!$response instanceof ReadableResponse) {
+            return [];
+        }
 
-        if ($header === false || $header === null) {
+        // Not getHeader(): Set-Cookie repeats, and getHeader() hands back only the first.
+        $header = $response->getHeaders()->get('Set-Cookie');
+
+        if ($header === false) {
             return [];
         }
 
         $names = [];
 
         foreach (is_iterable($header) ? $header : [$header] as $cookie) {
-            $name = method_exists($cookie, 'getName') ? (string) $cookie->getName() : '';
+            $name = $cookie instanceof SetCookie ? (string) $cookie->getName() : '';
 
             if ($name !== '') {
                 $names[] = substr($name, 0, 100);

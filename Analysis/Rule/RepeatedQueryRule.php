@@ -30,7 +30,7 @@ class RepeatedQueryRule implements RuleInterface
             return [];
         }
 
-        $groups = $this->analyzer->analyze($items)['groups'];
+        $groups = $this->analyzer->analyze(array_values($items))['groups'];
         $nPlusOne = [];
         $repeated = [];
 

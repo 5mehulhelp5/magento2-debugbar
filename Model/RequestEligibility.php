@@ -67,7 +67,7 @@ class RequestEligibility
     public function area(): ?string
     {
         try {
-            return $this->areaList->getCodeByFrontName($this->request->getFrontName());
+            return $this->areaList->getCodeByFrontName((string) $this->request->getFrontName());
         } catch (\Throwable) {
             return null;
         }

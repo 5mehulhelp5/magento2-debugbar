@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Siteation\DebugBar\Presentation;
 
+use Laminas\Http\Header\HeaderInterface;
 use Magento\Framework\App\Response\HttpInterface as HttpResponse;
 use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\HTTP\PhpEnvironment\Response as ReadableResponse;
@@ -141,13 +142,17 @@ class BarInjector
 
         $disposition = $response->getHeader('Content-Disposition');
 
-        if ($disposition !== false && str_contains(strtolower($disposition->getFieldValue()), 'attachment')) {
+        if ($disposition instanceof HeaderInterface
+            && str_contains(strtolower($disposition->getFieldValue()), 'attachment')
+        ) {
             return false;
         }
 
         $contentType = $response->getHeader('Content-Type');
 
-        if ($contentType !== false && !str_contains(strtolower($contentType->getFieldValue()), 'text/html')) {
+        if ($contentType instanceof HeaderInterface
+            && !str_contains(strtolower($contentType->getFieldValue()), 'text/html')
+        ) {
             return false;
         }
 
