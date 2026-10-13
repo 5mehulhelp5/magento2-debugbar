@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page and the ones loaded twice; and the Consent Mode v2 state. Values go through the
   value policy before they are shown or kept.
 
+- A **Web Vitals** section
+  ([#7](https://github.com/Siteation/magento2-debugbar/issues/7)):
+  LCP, CLS and INP, with TTFB and FCP, rated against Google's thresholds and updated as the
+  page is used. It points at the LCP element, the slowest interaction's target, and the
+  elements each layout shift moved. Clicks on the bar are left out of INP.
+
 - Request entries in the head script's buffer carry `at`, the time the response arrived,
   so a data layer push can be matched to the request before it.
 
@@ -42,8 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - A store that already chose which sections to show keeps that list,
-  so the SEO and Data layer sections stay off there until they are added under Sections in
-  the configuration.
+  so the SEO, Data layer and Web Vitals sections stay off there until they are added under
+  Sections in the configuration.
 
 [Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.2.0...main
 

@@ -106,6 +106,12 @@ export const SECTIONS = [
     graded: false,
   },
   {
+    id: 'vitals',
+    label: 'Web Vitals',
+    lead: 'How fast this page loaded, how much it moved, and how quickly it answered input, rated against Google\'s thresholds.',
+    graded: false,
+  },
+  {
     id: 'history',
     label: 'History',
     lead: 'Every request still on disk, so an earlier one is one click away.',
@@ -117,8 +123,8 @@ export const SECTIONS = [
  * Counts shown beside each section in the sidebar. Null means the section has nothing
  * worth counting, so no badge is drawn rather than a misleading zero.
  *
- * Alpine, Magewire, SEO and the data layer are the counts that do not come from the profile. They are read
- * from the page, so they can change without the request changing.
+ * Alpine, Magewire, SEO, the data layer and Web Vitals are the counts that do not come from
+ * the profile. They are read from the page, so they can change without the request changing.
  *
  * @param {string} id
  * @param {object} state the bar's Alpine component
@@ -139,6 +145,7 @@ export function countFor(id, state) {
     case 'magewire': return state.magewireComponents.length || null
     case 'seo': return state.seo.warningCount || null
     case 'datalayer': return state.dataLayer.warningCount || null
+    case 'vitals': return state.vitals.poorCount || null
     case 'history': return state.history.length || null
     default: return null
   }

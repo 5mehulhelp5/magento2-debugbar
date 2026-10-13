@@ -1216,6 +1216,127 @@ export const template = `
       </div>
       </template>
 
+      <template data-ndb-if="isSection('vitals')">
+      <div>
+        <div class="ndb-controls">
+          <button type="button" class="ndb-chip" data-ndb-on:click="refreshVitals()"
+                  title="Read the measurements again">Refresh</button>
+          <span class="ndb-dim ndb-count">Measured by this browser on this page, and updated as it is used.</span>
+        </div>
+
+        <p class="ndb-note" data-ndb-show="vitalsError">
+          Could not read the measurements: <span data-ndb-text="vitalsError"></span>
+        </p>
+
+        <table class="ndb-table ndb-vitals">
+          <thead><tr><th>Metric</th><th>Value</th><th>Rating</th></tr></thead>
+          <tbody>
+            <template data-ndb-for="metric in vitals.metrics" data-ndb-bind:key="metric.id">
+              <tr>
+                <td>
+                  <span class="ndb-mono" data-ndb-text="metric.label"></span>
+                  <span class="ndb-dim" data-ndb-text="metric.name"></span>
+                </td>
+                <td class="ndb-mono"
+                    data-ndb-text="metric.supported ? (metric.display || 'not yet') : 'not measured by this browser'"
+                    data-ndb-bind:class="metric.supported && metric.display ? '' : 'ndb-dim'"></td>
+                <td>
+                  <span class="ndb-pill" data-ndb-show="metric.rating"
+                        data-ndb-bind:class="vitalTone(metric.rating)"
+                        data-ndb-text="metric.rating.replace('-', ' ')"></span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <p class="ndb-note">
+          Rated against Google's thresholds. A field score is the 75th percentile of real
+          visits; this is one visit, on this machine, with the bar on the page.
+        </p>
+
+        <div class="ndb-subhead">
+          <div>
+            <h3>Largest Contentful Paint element</h3>
+            <p>The biggest thing drawn before the first input. Point at it to find it on the page.</p>
+          </div>
+        </div>
+        <p class="ndb-empty" data-ndb-show="!vitals.lcp">Nothing painted has been reported yet.</p>
+        <template data-ndb-if="vitals.lcp">
+          <button type="button" class="ndb-seo-row"
+                  data-ndb-on:click="revealVital(vitals.lcp.index)"
+                  data-ndb-on:mouseenter="highlightVital(vitals.lcp.index, true)"
+                  data-ndb-on:mouseleave="highlightVital(vitals.lcp.index, false)"
+                  data-ndb-on:focus="highlightVital(vitals.lcp.index, true)"
+                  data-ndb-on:blur="highlightVital(vitals.lcp.index, false)"
+                  title="Scroll to this element">
+            <span class="ndb-tag ndb-mono" data-ndb-text="vitals.lcp.label"></span>
+            <span class="ndb-seo-text ndb-mono" data-ndb-text="vitals.lcp.url"></span>
+            <span class="ndb-dim" data-ndb-show="vitals.lcp.size"
+                  data-ndb-text="number(vitals.lcp.size) + ' px²'"></span>
+          </button>
+        </template>
+
+        <div class="ndb-subhead">
+          <div>
+            <h3>Slowest interaction</h3>
+            <p>The interaction INP is taken from. Clicks on the bar are left out.</p>
+          </div>
+        </div>
+        <p class="ndb-empty" data-ndb-show="!vitals.inp.interaction">
+          <span data-ndb-show="vitals.inp.unseen === 0">No interaction yet. Click, tap or type on the page.</span>
+          <span data-ndb-show="vitals.inp.unseen > 0">Every interaction so far was under 104 ms, too quick for the browser to keep from before the bar loaded.</span>
+        </p>
+        <template data-ndb-if="vitals.inp.interaction">
+          <button type="button" class="ndb-seo-row"
+                  data-ndb-on:click="revealVital(vitals.inp.interaction.index)"
+                  data-ndb-on:mouseenter="highlightVital(vitals.inp.interaction.index, true)"
+                  data-ndb-on:mouseleave="highlightVital(vitals.inp.interaction.index, false)"
+                  data-ndb-on:focus="highlightVital(vitals.inp.interaction.index, true)"
+                  data-ndb-on:blur="highlightVital(vitals.inp.interaction.index, false)"
+                  title="Scroll to this element">
+            <span class="ndb-tag" data-ndb-text="vitals.inp.interaction.name"></span>
+            <span class="ndb-seo-text ndb-mono" data-ndb-text="vitals.inp.interaction.label"></span>
+            <span class="ndb-dim" data-ndb-text="'at ' + vitals.inp.interaction.at + ' ms'"></span>
+          </button>
+        </template>
+        <p class="ndb-note" data-ndb-show="vitals.inp.count > 0">
+          <span data-ndb-text="plural(vitals.inp.count, 'interaction', 'interactions')"></span> measured.
+          <span data-ndb-show="vitals.inp.unseen > 0"
+                data-ndb-text="plural(vitals.inp.unseen, 'earlier one was', 'earlier ones were') + ' under 104 ms and not kept from before the bar loaded.'"></span>
+        </p>
+
+        <div class="ndb-subhead">
+          <div>
+            <h3>Layout shifts</h3>
+            <p>Every shift not caused by input. CLS is the worst window, marked here. Point at an element to see what moved.</p>
+          </div>
+        </div>
+        <p class="ndb-empty" data-ndb-show="vitals.shifts.length === 0">Nothing has moved.</p>
+        <ol class="ndb-list">
+          <template data-ndb-for="(shift, position) in vitals.shifts" data-ndb-bind:key="position">
+            <li class="ndb-vitals-shift">
+              <p class="ndb-push-page">
+                <span class="ndb-mono" data-ndb-text="shift.display"></span>
+                <span class="ndb-dim" data-ndb-text="'at ' + shift.at + ' ms, window ' + shift.window"></span>
+                <span class="ndb-tag is-warn" data-ndb-show="shift.worst">counts for CLS</span>
+              </p>
+              <template data-ndb-for="(source, index) in shift.sources" data-ndb-bind:key="index">
+                <button type="button" class="ndb-seo-row"
+                        data-ndb-on:click="revealVital(source.index)"
+                        data-ndb-on:mouseenter="highlightVital(source.index, true)"
+                        data-ndb-on:mouseleave="highlightVital(source.index, false)"
+                        data-ndb-on:focus="highlightVital(source.index, true)"
+                        data-ndb-on:blur="highlightVital(source.index, false)"
+                        title="Scroll to this element">
+                  <span class="ndb-seo-text ndb-mono" data-ndb-text="source.label"></span>
+                </button>
+              </template>
+            </li>
+          </template>
+        </ol>
+      </div>
+      </template>
+
       <template data-ndb-if="isSection('history')">
       <div>
         ${subTabs('historyTab', [

@@ -770,3 +770,109 @@ test.describe('the data layer section', () => {
   })
 })
 
+
+test.describe('the Web Vitals section', () => {
+  /**
+   * Elements the bar has outlined, by their inline style, which is how it draws one.
+   *
+   * @param {import('@playwright/test').Page} page
+   * @returns {Promise<Array<string>>}
+   */
+  function outlined(page) {
+    return page.evaluate(() => Array.from(document.querySelectorAll('[style*="outline"]'))
+      .filter((element) => element.style.outline.includes('solid'))
+      .map((element) => element.tagName.toLowerCase() + (element.id ? `#${element.id}` : '')))
+  }
+
+  test('measures the page, points at what moved, and keeps the bar out of INP', async ({ page }) => {
+    await openBar(page)
+    await state(page, (data) => { data.section = 'vitals' })
+
+    // The page loaded before the bar did, so these came from the buffered entries.
+    await waitForState(page, (data) => ['lcp', 'fcp', 'ttfb']
+      .every((id) => data.vitals.metrics.find((metric) => metric.id === id).value !== null))
+    await expect(page.locator('.ndb-vitals tbody tr')).toHaveCount(5)
+    expect(await ourAlpineErrors(page)).toEqual([])
+
+    const lcp = await state(page, (data) => data.vitals.lcp)
+
+    expect(lcp.label, 'LCP names its element').not.toBe('')
+
+    await page.locator('.ndb-seo-row').first().hover()
+    expect((await outlined(page)).length, 'hovering the LCP row outlines its element').toBe(1)
+    await page.locator('.ndb-section-head h2').hover()
+    expect(await outlined(page), 'moving off gives the page its own style back').toEqual([])
+
+    // A shift nobody asked for, and a control on the page that is slow to answer. With the
+    // inspector closed, so the page is not inert and the click is a real one.
+    await closeToDock(page)
+    await page.evaluate(() => {
+      const slow = document.createElement('button')
+
+      slow.id = 'ndb-vitals-slow'
+      slow.textContent = 'slow'
+      slow.style.cssText = 'display:block;height:200px;width:100%'
+      slow.addEventListener('click', () => {
+        const start = performance.now()
+
+        while (performance.now() - start < 300) { /* hold the main thread */ }
+      })
+      document.body.prepend(slow)
+
+      // And a bar that is slower still to answer, so if its clicks were counted, one of them
+      // would be INP. Slow enough, too, for the browser to keep it in its buffer.
+      document.querySelector('siteation-debugbar').addEventListener('click', () => {
+        const start = performance.now()
+
+        while (performance.now() - start < 600) { /* hold the main thread */ }
+      })
+    })
+    await page.waitForTimeout(300)
+    await page.click('#ndb-vitals-slow')
+
+    // Opened by a real, slow click on the bar, which is an interaction with the bar.
+    await page.locator('.ndb-dock').click()
+    await expect(page.locator('.ndb-sheet')).toBeVisible()
+    await state(page, (data) => { data.maximised = true; data.section = 'vitals' })
+
+    // The browser reports an interaction after its next paint, so the bar's click can arrive
+    // after the page's. Waited for here, from the browser's own buffer: until it is there,
+    // a count of one would pass whether or not the bar leaves its own clicks out.
+    await expect.poll(() => page.evaluate(() => new Promise((resolve) => {
+      const host = document.querySelector('siteation-debugbar')
+      const observer = new PerformanceObserver((list) => {
+        observer.disconnect()
+        resolve(list.getEntries().some((entry) => entry.interactionId > 0 && entry.target === host))
+      })
+
+      observer.observe({ type: 'event', buffered: true, durationThreshold: 16 })
+    })), { message: 'the click on the bar reached the browser\'s event timing' }).toBe(true)
+
+    await state(page, (data) => { data.refreshVitals() })
+    await waitForState(page, (data) => data.vitals.shifts.length > 0
+      && data.vitals.inp.interaction !== null)
+
+    const inp = await state(page, (data) => ({
+      metric: data.vitals.metrics.find((metric) => metric.id === 'inp'),
+      interaction: data.vitals.inp.interaction,
+      count: data.vitals.inp.count,
+    }))
+
+    expect(inp.interaction.label, 'the slow click on the page is INP, not the slower one on the bar')
+      .toBe('button#ndb-vitals-slow')
+    expect(inp.metric.value).toBeGreaterThanOrEqual(300)
+    expect(inp.metric.rating).not.toBe('good')
+    expect(inp.count, 'only the click on the page is counted').toBe(1)
+
+    expect(await state(page, (data) => data.vitals.metrics.find((metric) => metric.id === 'cls').value))
+      .toBeGreaterThan(0)
+
+    const source = page.locator('.ndb-vitals-shift .ndb-seo-row').first()
+
+    await source.hover()
+    expect((await outlined(page)).length, 'hovering a shift source outlines what moved').toBe(1)
+    await page.locator('.ndb-section-head h2').hover()
+    expect(await outlined(page)).toEqual([])
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+})
