@@ -158,7 +158,7 @@
 <li>Its panel in <code>src-js/src/template.js</code>, inside <code>isSection(&#039;&lt;id&gt;&#039;)</code>. Sub views use <code>subTabs()</code> from <code>tabs.js</code>.</li>
 <li>An option in <code>Model\Config\Source\Sections</code>, with the same id, so it can be switched off. Findings and Overview are left out of that list on purpose.</li>
 </ol>
-<p>The browser suite walks every section and every sub view, so a new one is covered as soon as it is in the list.</p>
+<p>The browser suite walks every section and every sub view, so a new one is checked for a binding that throws as soon as it is in the list. That walk does not wait for the section&#039;s rows or look at them, so a section that renders empty passes it. Give a new section a test of its own that waits for its items and checks what they show. A section that reads something the test store lacks, as Magewire does, gets a stand-in installed before the page&#039;s scripts.</p>
 <h2 id="adding-a-rule"><a class="anchor" href="#adding-a-rule">Adding a rule</a></h2>
 <p>Implement <code>Api\RuleInterface</code> and register it in the rules array in <code>etc/di.xml</code>. A rule that throws is skipped and logged rather than taking the profile with it.</p>
 <p>A rule returns <code>Analysis\Finding</code> objects. Each carries a severity, a message, where it came from, what to check next, and the section and filter holding its evidence. Point the action at a filter that actually narrows: mapping <code>repeated</code> to <code>all</code> is no filter at all, which is a mistake this codebase has already made once.</p>
@@ -204,7 +204,7 @@ vendor/bin/phpunit --configuration &lt;pkg&gt;/phpunit.xml.dist \
     --bootstrap vendor/autoload.php                            # 336 tests
 &lt;pkg&gt;/dev/smoke https://your-store.test admin                  # 31 checks over HTTP
 cd &lt;pkg&gt;/src-js &amp;&amp; npm test                                    # 163, no store needed
-cd &lt;pkg&gt;/src-js &amp;&amp; npm run test:browser                        # 30, needs the store up</code></pre>
+cd &lt;pkg&gt;/src-js &amp;&amp; npm run test:browser                        # 34, needs the store up</code></pre>
 <p><strong>The supported PHP range is checked separately</strong>, because <code>phpstan.neon.dist</code> has to keep working with the PHPStan a Magento install carries, and that one is pinned to 1.x by Magento and by rector. <code>phpstan-versions.neon.dist</code> layers the range from <code>composer.json</code> on top of it and needs PHPStan 2.1 or newer, so bring your own and run it from the Magento root, where it finds the autoloader:</p>
 <pre><code>composer global require phpstan/phpstan:^2.2
 ~/.composer/vendor/bin/phpstan analyse -c &lt;pkg&gt;/phpstan-versions.neon.dist</code></pre>
