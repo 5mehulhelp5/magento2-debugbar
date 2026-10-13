@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 use Siteation\DebugBar\Collector\SeoCollector;
 use Siteation\DebugBar\Model\Clock;
 use Siteation\DebugBar\Model\Redactor;
+use Siteation\DebugBar\Model\SeoSources;
 
 /**
  * What the server's HTML told search engines, read the way the live SEO view reads the page.
@@ -95,6 +96,38 @@ class SeoCollectorTest extends TestCase
         $this->assertSame(['BreadcrumbList', 'Product', 'Offer', 'Organization'], $summary['schema_types']);
         $this->assertSame(2, $summary['json_ld_count']);
         $this->assertSame(1, $summary['json_ld_invalid'], 'a block that does not parse is counted, not dropped');
+    }
+
+    #[Test]
+    public function offersAreReadFromJsonLdAndFromMicrodata(): void
+    {
+        $summary = $this->collect('<!doctype html><html><head>'
+            . '<script type="application/ld+json">{"@type": "Product", "offers": {"@type": "Offer",'
+            . ' "price": 36.3, "priceCurrency": "EUR", "availability": "https://schema.org/InStock"}}</script>'
+            . '</head><body><div itemscope itemtype="https://schema.org/AggregateOffer">'
+            . '<meta itemprop="lowPrice" content="10.00"><meta itemprop="highPrice" content="20.00">'
+            . '<span itemprop="priceCurrency">EUR</span>'
+            . '<link itemprop="availability" href="http://schema.org/OutOfStock"></div></body></html>')->summary();
+
+        $this->assertSame([
+            ['price' => '36.3', 'low' => '', 'high' => '', 'currency' => 'EUR', 'availability' => 'InStock'],
+            ['price' => '', 'low' => '10.00', 'high' => '20.00', 'currency' => 'EUR', 'availability' => 'OutOfStock'],
+        ], $summary['offers']);
+    }
+
+    #[Test]
+    public function whereEachValueCameFromIsInThePayloadAndTheProductInTheSummary(): void
+    {
+        $sources = $this->createStub(SeoSources::class);
+        $sources->method('explain')->willReturn([['field' => 'title', 'key' => 'meta_title']]);
+        $sources->method('product')->willReturn(['type' => 'simple', 'price' => 10.0]);
+
+        $product = $this->collect(self::PAGE, action: 'catalog_product_view', sources: $sources);
+        $this->assertSame([['field' => 'title', 'key' => 'meta_title']], $product->payload()['sources']);
+        $this->assertSame(['type' => 'simple', 'price' => 10.0], $product->summary()['product']);
+
+        $category = $this->collect(self::PAGE, sources: $sources)->summary();
+        $this->assertArrayNotHasKey('product', $category, 'only a product page states a price');
     }
 
     #[Test]
@@ -199,7 +232,8 @@ class SeoCollectorTest extends TestCase
         string $area = 'frontend',
         string $contentType = 'text/html; charset=UTF-8',
         string $robotsHeader = '',
-        string $action = 'catalog_category_view'
+        string $action = 'catalog_category_view',
+        ?SeoSources $sources = null
     ): SeoCollector {
         $request = $this->createStub(HttpRequest::class);
         $request->method('getFullActionName')->willReturn($action);
@@ -216,7 +250,13 @@ class SeoCollectorTest extends TestCase
             $response->setHeader('X-Robots-Tag', $robotsHeader);
         }
 
-        $collector = new SeoCollector(new Redactor(), new Clock(), $request, $state);
+        $collector = new SeoCollector(
+            new Redactor(),
+            new Clock(),
+            $request,
+            $state,
+            $sources ?? $this->createStub(SeoSources::class)
+        );
         $collector->finalize($response);
 
         return $collector;

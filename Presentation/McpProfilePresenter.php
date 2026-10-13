@@ -238,6 +238,7 @@ class McpProfilePresenter
                 'canonicals' => $payload['canonicals'] ?? [],
                 'hreflang' => $payload['hreflang'] ?? [],
                 'social' => $payload['social'] ?? [],
+                'sources' => $payload['sources'] ?? [],
                 'headings' => $shown,
                 'headings_total' => count($items),
                 'findings' => $findings,

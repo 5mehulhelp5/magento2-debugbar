@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use Siteation\DebugBar\Analysis\Rule\SeoCanonicalRule;
 use Siteation\DebugBar\Analysis\Rule\SeoHeadingRule;
 use Siteation\DebugBar\Analysis\Rule\SeoNoindexRule;
+use Siteation\DebugBar\Analysis\Rule\SeoSchemaOfferRule;
 
 /**
  * The SEO findings, and the pages they must stay quiet on.
@@ -19,6 +20,9 @@ use Siteation\DebugBar\Analysis\Rule\SeoNoindexRule;
  */
 class SeoRulesTest extends TestCase
 {
+    private const PRODUCT = ['type' => 'simple', 'price' => 36.3, 'price_excl_tax' => 30.0, 'currency' => 'EUR',
+        'salable' => true];
+
     #[Test]
     public function aProductWithNoCanonicalNamesTheSettingThatAddsIt(): void
     {
@@ -99,6 +103,81 @@ class SeoRulesTest extends TestCase
             $this->assertSame([], $rule->apply($skipped), $rule::class);
             $this->assertSame([], $rule->apply(['sections' => []]), $rule::class);
         }
+    }
+
+    #[Test]
+    public function aSchemaPriceThePageDoesNotChargeIsAFinding(): void
+    {
+        $findings = (new SeoSchemaOfferRule())->apply($this->profile([
+            'product' => self::PRODUCT,
+            'offers' => [$this->offer(['price' => '39.99'])],
+        ]));
+
+        $this->assertSame(['seo.schema_price'], array_map(static fn ($f) => $f->toArray()['id'], $findings));
+        $this->assertStringContainsString('costs 39.99', $findings[0]->toArray()['message']);
+        $this->assertStringContainsString('36.30 EUR, or 30.00 before tax', $findings[0]->toArray()['message']);
+        $this->assertSame('schema', $findings[0]->toArray()['action']['filter']);
+    }
+
+    #[Test]
+    public function aSchemaPriceInEitherTaxModeOrARangeAroundItIsRight(): void
+    {
+        $rule = new SeoSchemaOfferRule();
+
+        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => [$this->offer(['price' => '36.30'])]])));
+        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => [$this->offer(['price' => '30'])]])));
+        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => [
+            $this->offer(['price' => '', 'low' => '25.00', 'high' => '40.00']),
+        ]])));
+        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => [
+            $this->offer(['price' => '50.00']),
+            $this->offer(['price' => '36,30']),
+        ]])), 'one variant at the product price is enough');
+        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => [$this->offer(['price' => ''])]])),
+            'no stated price is the Schema view\'s finding, not this one');
+    }
+
+    #[Test]
+    public function aSchemaCurrencyOrStockThePageDoesNotHaveIsAFinding(): void
+    {
+        $findings = (new SeoSchemaOfferRule())->apply($this->profile([
+            'product' => [...self::PRODUCT, 'salable' => false],
+            'offers' => [$this->offer(['currency' => 'USD', 'availability' => 'InStock'])],
+        ]));
+        $ids = array_map(static fn ($f) => $f->toArray()['id'], $findings);
+
+        $this->assertSame(['seo.schema_currency', 'seo.schema_stock'], $ids);
+        $this->assertStringContainsString('says InStock, and this product cannot be bought', $findings[1]->toArray()['message']);
+
+        $sellable = (new SeoSchemaOfferRule())->apply($this->profile([
+            'product' => self::PRODUCT,
+            'offers' => [$this->offer(['availability' => 'OutOfStock'])],
+        ]));
+        $this->assertSame(['seo.schema_stock'], array_map(static fn ($f) => $f->toArray()['id'], $sellable));
+    }
+
+    #[Test]
+    public function theOfferRuleIsQuietWithoutAProductOrOffersOrOnAnErrorPage(): void
+    {
+        $rule = new SeoSchemaOfferRule();
+        $wrong = [$this->offer(['price' => '1.00', 'availability' => 'OutOfStock'])];
+
+        $this->assertSame([], $rule->apply($this->profile(['offers' => $wrong])), 'a cached page has no product facts');
+        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => []])));
+        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => $wrong, 'status' => 404])));
+        $this->assertSame([], $rule->apply($this->profile([
+            'product' => self::PRODUCT,
+            'offers' => [$this->offer(['availability' => 'InStock']), $this->offer(['availability' => 'OutOfStock'])],
+        ])), 'variants can disagree with each other');
+    }
+
+    /**
+     * @param array<string, string> $values
+     * @return array<string, string>
+     */
+    private function offer(array $values): array
+    {
+        return ['price' => '36.30', 'low' => '', 'high' => '', 'currency' => 'EUR', 'availability' => 'InStock', ...$values];
     }
 
     /**
