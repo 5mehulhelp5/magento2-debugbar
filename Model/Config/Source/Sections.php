@@ -34,6 +34,7 @@ class Sections implements OptionSourceInterface
             ['value' => 'alpine', 'label' => __('Alpine')->render()],
             ['value' => 'magewire', 'label' => __('Magewire')->render()],
             ['value' => 'seo', 'label' => __('SEO')->render()],
+            ['value' => 'datalayer', 'label' => __('Data layer')->render()],
             ['value' => 'history', 'label' => __('History')->render()],
         ];
     }

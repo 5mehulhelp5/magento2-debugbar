@@ -102,14 +102,16 @@ Filter it by typing.
 | Alpine | The components on the page right now, and their live state |
 | Magewire | The components on the page, their state, and each update's cost |
 | SEO | The page as a search engine or a link preview reads it |
+| Data layer | What the page pushed to `window.dataLayer`, its tags, and their consent state |
 | History | Every profile still on disk, so an earlier request is one click away |
 
-Alpine, Magewire and SEO read the live page rather than the stored profile, so they show what
+Alpine, Magewire, SEO and Data layer read the live page rather than the stored profile, so they
+show what
 is in the browser now. Everything else is the profile.
 
 ### SEO
 
-Five views, each with a count of what needs a look:
+Six views, each with a count of what needs a look:
 
 - **Overview**: the title and meta description with their length, the canonical URL and why
   it differs from this page when it does, the robots meta tag and the `X-Robots-Tag` header,
@@ -125,6 +127,17 @@ Five views, each with a count of what needs a look:
 - **Links**: internal, external and nofollow counts, and links with no text, links that go
   nowhere, `javascript:` links, internal links marked nofollow, and `http:` links on an
   `https:` page.
+- **Schema**: every JSON-LD block and every microdata item on the page, as one list of
+  entities, with `@graph` opened up. A block that does not parse says why and on which line.
+  Each entity is checked against what Google needs for a rich result: Product and Offer,
+  AggregateRating and Review, BreadcrumbList, Organization, WebSite, FAQPage and Article, with
+  a link to Google's page for each. Open an entity to see what it lacks and the entity itself.
+  The same entity described twice is flagged, including the common case of a theme marking up
+  its product inside the `<body itemtype="Product">` Magento already writes. Hover a microdata
+  row to outline its element on the page.
+  Google's Rich Results Test and the Schema Markup Validator cannot reach a `.test` or local
+  shop, so on one of those **Copy the markup** puts every block and item on the clipboard to
+  paste into the tool's code tab. On a public host the links open the tools on this URL.
 - **Social**: the Open Graph and X card tags, with each required one that is missing.
 
 Images and Links show only the rows with a problem until you switch **Problems only** off.
@@ -141,6 +154,40 @@ the bar, which is the reason it is only there while the SEO section is on.
 
 No value policy applies to this section. Everything it shows is markup the page has already
 drawn for you.
+
+### Data layer
+
+Three views, each with a count of what needs a look:
+
+- **Pushes**: everything pushed to `window.dataLayer`, in order, from the first byte. Pushes
+  made before the bar's script arrived are marked **before the bar**; the rest show when they
+  happened and the request that came back just before, such as the cart update an
+  `add_to_cart` answers. Open a push to see it, or switch on **Paths** to see every value with
+  its path, such as `ecommerce.items[0].item_id`; click a path to copy it for a GTM data layer
+  variable. GA4 ecommerce events are checked: `items[]` with an `item_id` or `item_name`,
+  `currency` whenever `value` is set, `transaction_id` on a purchase, and `{ecommerce: null}`
+  pushed right before each `dataLayer.push` ecommerce event. The pushes of earlier pages in this
+  tab stay in the list until the tab closes; **This page only** hides them.
+- **Tags**: Google Tag Manager, GA4, Google Ads, Meta, TikTok, Pinterest, LinkedIn, Microsoft
+  Clarity and UET, Hotjar, found in script URLs, inline snippets, `gtag('config')` calls and
+  the list Google's own runtime keeps of what it loaded. The same tag loaded or configured
+  twice is flagged, and so are two GTM containers, since the page cannot tell which GA4
+  property a container sends to.
+- **Consent**: the four Consent Mode v2 keys, as the default set them and as they are now
+  after every update, read from the `gtag('consent', ...)` calls. A tag that fires before the
+  default, a missing default, and a default without `ad_user_data` or `ad_personalization` are
+  flagged.
+
+The bar sees the pushes because its head script puts a recorder in front of
+`dataLayer.push`, which stays in front when GTM or gtag.js replace `push` with their own.
+Each push is copied the moment it is made, so a value the page changes afterwards shows as
+it was sent.
+
+A data layer holds what the page never draws: emails, phone numbers, order totals. Every value
+goes through the store's value policy before it is shown or kept, as Alpine state does. Event
+names and gtag commands are shown under every policy, because without them the list says
+nothing. The pushes of earlier pages are kept in the tab's session storage, already cleaned,
+and not at all under the `none` policy.
 
 Only summaries travel with the page, about 1.5 kB. A section's contents are fetched the
 first time you open it.

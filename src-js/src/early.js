@@ -18,11 +18,14 @@
   // same one, so without this the list is a column of identical rows.
   const LABEL_HEADER = 'x-siteation-debugbar-label'
   const MAX_ERRORS = 25
+  const MAX_PUSHES = 300
   const state = {
     requests: [],
     onRequest: null,
     alpineErrors: [],
     alpineReady: false,
+    pushes: [],
+    onPush: null,
   }
 
   window.__siteationDebugBar = state
@@ -41,6 +44,9 @@
       url: String(url).split('?')[0],
       status: status,
       label: label ? String(label).slice(0, 240) : '',
+      // When the response arrived, on the same clock as the data layer pushes, so a push
+      // can be matched to the request it came after.
+      at: performance.now(),
     }
 
     if (state.requests.some((seen) => seen.id === entry.id)) return
@@ -106,6 +112,135 @@
     }
 
     return nativeWarn.apply(console, arguments)
+  }
+
+  /**
+   * A copy of a pushed value as it was at the moment of the push. Sites reuse and change
+   * the objects they push, so a reference read later shows a value that was never sent.
+   * Functions and elements become a label; nothing is evaluated.
+   */
+  function snapshot(value, depth, seen) {
+    if (value === null || typeof value !== 'object') {
+      if (typeof value === 'function') return '[function]'
+      if (typeof value === 'undefined') return null
+
+      return value
+    }
+
+    if (value instanceof Date) return isNaN(value.getTime()) ? 'Invalid Date' : value.toISOString()
+    if (depth > 8) return '[maximum depth reached]'
+    if (seen.indexOf(value) !== -1) return '[circular]'
+    if (typeof Node !== 'undefined' && value instanceof Node) return '[element]'
+
+    seen.push(value)
+
+    let copy
+
+    if (Array.isArray(value) || Object.prototype.toString.call(value) === '[object Arguments]') {
+      copy = []
+
+      for (let index = 0; index < value.length && index < 200; index += 1) {
+        copy.push(snapshot(value[index], depth + 1, seen))
+      }
+    } else {
+      copy = {}
+
+      Object.keys(value).slice(0, 200).forEach(function (key) {
+        try {
+          copy[key] = snapshot(value[key], depth + 1, seen)
+        } catch (error) {
+          copy[key] = '[unreadable]'
+        }
+      })
+    }
+
+    seen.pop()
+
+    return copy
+  }
+
+  function record(value, before) {
+    try {
+      if (state.pushes.length >= MAX_PUSHES) state.pushes.shift()
+
+      const entry = {
+        // gtag() pushes its arguments object rather than an array, and that is the only
+        // way to tell a gtag command from an object push once it is copied.
+        gtag: Object.prototype.toString.call(value) === '[object Arguments]',
+        value: snapshot(value, 0, []),
+        at: performance.now(),
+        before: before,
+      }
+
+      state.pushes.push(entry)
+
+      if (typeof state.onPush === 'function') state.onPush(entry)
+    } catch (error) {
+      // As with requests: watching a push must never break it.
+    }
+  }
+
+  /**
+   * Puts a recorder in front of dataLayer.push and keeps it there.
+   *
+   * GTM and gtag.js assign their own push when they load, and some save the push they
+   * found and call it from theirs. So push is an accessor: what a script assigns becomes
+   * the function the recorder calls, and the recorder is what every caller gets. A call
+   * that comes back into the recorder from inside that function is the saved push being
+   * used, and goes straight to the array, so it is neither recorded twice nor a loop.
+   */
+  function watch(layer) {
+    if (!Array.isArray(layer) || layer.__ndbWatched) return
+
+    let inner = layer.push === Array.prototype.push ? null : layer.push
+    let depth = 0
+
+    function push() {
+      if (depth > 0) return Array.prototype.push.apply(layer, arguments)
+
+      depth += 1
+
+      try {
+        for (let index = 0; index < arguments.length; index += 1) record(arguments[index], false)
+
+        return inner ? inner.apply(layer, arguments) : Array.prototype.push.apply(layer, arguments)
+      } finally {
+        depth -= 1
+      }
+    }
+
+    try {
+      Object.defineProperty(layer, '__ndbWatched', { value: true })
+      Object.defineProperty(layer, 'push', {
+        configurable: true,
+        get: function () { return push },
+        set: function (fn) { inner = typeof fn === 'function' && fn !== push ? fn : null },
+      })
+    } catch (error) {
+      return
+    }
+
+    // What was pushed before this script ran is still in the array, unrecorded.
+    for (let index = 0; index < layer.length; index += 1) record(layer[index], true)
+  }
+
+  try {
+    let current = window.dataLayer
+
+    watch(current)
+
+    // The page may create the data layer after this script, or replace it.
+    Object.defineProperty(window, 'dataLayer', {
+      configurable: true,
+      enumerable: true,
+      get: function () { return current },
+      set: function (value) {
+        current = value
+        watch(value)
+      },
+    })
+  } catch (error) {
+    // A page that froze window.dataLayer keeps it; the bar reads what it can later.
   }
 
   const nativeFetch = window.fetch
