@@ -26,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Compare, the markdown report and `compare_debug_profiles` list the SEO facts that differ
   between two requests.
 
+- The **SEO server half**, third part
+  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10)):
+  for the title, description, H1, canonical and robots on a product, category or CMS page,
+  the SEO overview names the attribute, CMS field or setting Magento takes it from, with a
+  link to edit it, and marks a value the page does not match as set elsewhere. The report
+  and `get_debug_seo` carry the same. Three new findings check a product page's structured
+  data offers against the product: a price it does not sell for, another currency, and a
+  stock status that says the opposite of whether it can be bought.
+
 - A **Layout** section
   ([#9](https://github.com/Siteation/magento2-debugbar/issues/9)):
   the layout handles the request loaded, in the order Magento merged them, with the XML

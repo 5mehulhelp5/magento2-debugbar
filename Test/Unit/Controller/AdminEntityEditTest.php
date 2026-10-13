@@ -69,7 +69,10 @@ class AdminEntityEditTest extends TestCase
     public function aCatalogSettingOpensTheCatalogSectionInTheStoreView(): void
     {
         $this->edit(['type' => 'catalog_config', 'id' => '0', 'store' => '3'])->execute();
-        $this->assertSame(['adminhtml/system_config/edit', ['section' => 'catalog', 'store' => 3]], $this->redirectedTo);
+        $this->assertSame(
+            ['adminhtml/system_config/edit', ['section' => 'catalog', 'store' => 3]],
+            $this->redirectedTo
+        );
 
         $this->edit(['type' => 'catalog_config', 'id' => '0', 'store' => '1'], singleStore: true)->execute();
         $this->assertSame(['adminhtml/system_config/edit', ['section' => 'catalog']], $this->redirectedTo);

@@ -10,6 +10,7 @@ use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Framework\DataObject;
 use Magento\Framework\Registry;
 use Magento\Store\Model\ScopeInterface;
+use Magento\Store\Model\Store;
 use Magento\Store\Model\StoreManagerInterface;
 use Throwable;
 
@@ -65,8 +66,18 @@ class SeoSources
     {
         try {
             return match ((string) ($record['action'] ?? '')) {
-                'catalog_product_view' => $this->catalog('product', 'current_product', self::PRODUCT_CANONICAL, $record),
-                'catalog_category_view' => $this->catalog('category', 'current_category', self::CATEGORY_CANONICAL, $record),
+                'catalog_product_view' => $this->catalog(
+                    'product',
+                    'current_product',
+                    self::PRODUCT_CANONICAL,
+                    $record
+                ),
+                'catalog_category_view' => $this->catalog(
+                    'category',
+                    'current_category',
+                    self::CATEGORY_CANONICAL,
+                    $record
+                ),
                 'cms_page_view' => $this->cms('cms_page', (int) $this->request->getParam('page_id'), $record),
                 'cms_index_index' => $this->cms('cms_home', $this->homePage->id($this->storeId()), $record),
                 default => [],
@@ -93,12 +104,13 @@ class SeoSources
             }
 
             $amount = $product->getPriceInfo()->getPrice('final_price')->getAmount();
+            $store = $this->storeManager->getStore();
 
             return [
                 'type' => (string) $product->getData('type_id'),
                 'price' => round((float) $amount->getValue(), 2),
                 'price_excl_tax' => round((float) $amount->getBaseAmount(), 2),
-                'currency' => (string) $this->storeManager->getStore()->getCurrentCurrencyCode(),
+                'currency' => $store instanceof Store ? (string) $store->getCurrentCurrencyCode() : '',
                 'salable' => method_exists($product, 'isSalable') && (bool) $product->isSalable(),
             ];
         } catch (Throwable) {
@@ -125,29 +137,68 @@ class SeoSources
         $rows = [];
 
         if ($metaTitle !== '') {
-            $rows[] = $this->row('title', 'Title', self::FROM_ATTRIBUTE, "$noun attribute", 'meta_title',
-                $this->withAffixes($metaTitle), (string) ($record['title'] ?? ''), $edit);
+            $rows[] = $this->row(
+                'title',
+                'Title',
+                self::FROM_ATTRIBUTE,
+                "$noun attribute",
+                'meta_title',
+                $this->withAffixes($metaTitle),
+                (string) ($record['title'] ?? ''),
+                $edit
+            );
         } elseif ($type === 'product') {
-            $rows[] = $this->row('title', 'Title', self::FROM_ATTRIBUTE, 'Product attribute, as meta_title is empty', 'name',
-                $this->withAffixes($name), (string) ($record['title'] ?? ''), $edit);
+            $rows[] = $this->row(
+                'title',
+                'Title',
+                self::FROM_ATTRIBUTE,
+                'Product attribute, as meta_title is empty',
+                'name',
+                $this->withAffixes($name),
+                (string) ($record['title'] ?? ''),
+                $edit
+            );
         } else {
             // The category names along the breadcrumb, current first. Predicting that means
             // loading every parent, which is more than a debug read should cost a request.
-            $rows[] = $this->row('title', 'Title', self::FROM_ATTRIBUTE,
-                sprintf('Category names along the breadcrumb, joined by "%s", as meta_title is empty',
-                    (string) $this->setting(self::TITLE_SEPARATOR)),
-                'name', null, (string) ($record['title'] ?? ''), $edit);
+            $rows[] = $this->row(
+                'title',
+                'Title',
+                self::FROM_ATTRIBUTE,
+                sprintf(
+                    'Category names along the breadcrumb, joined by "%s", as meta_title is empty',
+                    (string) $this->setting(self::TITLE_SEPARATOR)
+                ),
+                'name',
+                null,
+                (string) ($record['title'] ?? ''),
+                $edit
+            );
         }
 
         $rows[] = $this->description("$noun attribute", (string) $entity->getData('meta_description'), $record, $edit);
-        $rows[] = $this->row('h1', 'H1', self::FROM_ATTRIBUTE, "$noun attribute", 'name', $name,
-            (string) ($record['h1'] ?? ''), $edit);
+        $rows[] = $this->row(
+            'h1',
+            'H1',
+            self::FROM_ATTRIBUTE,
+            "$noun attribute",
+            'name',
+            $name,
+            (string) ($record['h1'] ?? ''),
+            $edit
+        );
 
         $on = $this->scopeConfig->isSetFlag($canonicalSetting, ScopeInterface::SCOPE_STORE);
-        $rows[] = $this->row('canonical', 'Canonical', self::FROM_SETTING, 'Setting', $canonicalSetting,
+        $rows[] = $this->row(
+            'canonical',
+            'Canonical',
+            self::FROM_SETTING,
+            'Setting',
+            $canonicalSetting,
             $on ? 'a canonical tag' : 'no canonical tag',
             (int) ($record['canonical_count'] ?? 0) > 0 ? 'a canonical tag' : 'no canonical tag',
-            $this->editLink->forTarget('catalog_config'));
+            $this->editLink->forTarget('catalog_config')
+        );
         $rows[] = $this->robots($record);
 
         return $rows;
@@ -171,7 +222,10 @@ class SeoSources
 
         $page = $connection->fetchRow(
             $connection->select()
-                ->from($this->pageResource->getMainTable(), ['title', 'meta_title', 'meta_description', 'content_heading'])
+                ->from(
+                    $this->pageResource->getMainTable(),
+                    ['title', 'meta_title', 'meta_description', 'content_heading']
+                )
                 ->where('page_id = ?', $id)
         );
 
@@ -184,17 +238,48 @@ class SeoSources
 
         return [
             $metaTitle !== ''
-                ? $this->row('title', 'Title', self::FROM_FIELD, 'CMS page field', 'meta_title',
-                    $this->withAffixes($metaTitle), (string) ($record['title'] ?? ''), $edit)
-                : $this->row('title', 'Title', self::FROM_FIELD, 'CMS page field, as meta_title is empty', 'title',
-                    $this->withAffixes((string) $page['title']), (string) ($record['title'] ?? ''), $edit),
+                ? $this->row(
+                    'title',
+                    'Title',
+                    self::FROM_FIELD,
+                    'CMS page field',
+                    'meta_title',
+                    $this->withAffixes($metaTitle),
+                    (string) ($record['title'] ?? ''),
+                    $edit
+                )
+                : $this->row(
+                    'title',
+                    'Title',
+                    self::FROM_FIELD,
+                    'CMS page field, as meta_title is empty',
+                    'title',
+                    $this->withAffixes((string) $page['title']),
+                    (string) ($record['title'] ?? ''),
+                    $edit
+                ),
             $this->description('CMS page field', (string) $page['meta_description'], $record, $edit),
-            $this->row('h1', 'H1', self::FROM_FIELD, 'CMS page field', 'content_heading',
-                (string) $page['content_heading'], (string) ($record['h1'] ?? ''), $edit),
+            $this->row(
+                'h1',
+                'H1',
+                self::FROM_FIELD,
+                'CMS page field',
+                'content_heading',
+                (string) $page['content_heading'],
+                (string) ($record['h1'] ?? ''),
+                $edit
+            ),
             // Magento writes no canonical on a CMS page. One that is there came from elsewhere.
-            $this->row('canonical', 'Canonical', self::FROM_SETTING, 'Not written by Magento on a CMS page', '',
+            $this->row(
+                'canonical',
+                'Canonical',
+                self::FROM_SETTING,
+                'Not written by Magento on a CMS page',
+                '',
                 'no canonical tag',
-                (int) ($record['canonical_count'] ?? 0) > 0 ? 'a canonical tag' : 'no canonical tag', ''),
+                (int) ($record['canonical_count'] ?? 0) > 0 ? 'a canonical tag' : 'no canonical tag',
+                ''
+            ),
             $this->robots($record),
         ];
     }
@@ -210,12 +295,28 @@ class SeoSources
         if (trim($own) !== '') {
             $from = str_starts_with($source, 'CMS') ? self::FROM_FIELD : self::FROM_ATTRIBUTE;
 
-            return $this->row('description', 'Meta description', $from, $source, 'meta_description', $own, $served, $edit);
+            return $this->row(
+                'description',
+                'Meta description',
+                $from,
+                $source,
+                'meta_description',
+                $own,
+                $served,
+                $edit
+            );
         }
 
-        return $this->row('description', 'Meta description', self::FROM_SETTING,
-            'Setting, as meta_description is empty', self::DEFAULT_DESCRIPTION,
-            (string) $this->setting(self::DEFAULT_DESCRIPTION), $served, $this->editLink->forTarget('design_config'));
+        return $this->row(
+            'description',
+            'Meta description',
+            self::FROM_SETTING,
+            'Setting, as meta_description is empty',
+            self::DEFAULT_DESCRIPTION,
+            (string) $this->setting(self::DEFAULT_DESCRIPTION),
+            $served,
+            $this->editLink->forTarget('design_config')
+        );
     }
 
     /**
@@ -224,9 +325,16 @@ class SeoSources
      */
     private function robots(array $record): array
     {
-        return $this->row('robots', 'Robots meta', self::FROM_SETTING, 'Setting', self::DEFAULT_ROBOTS,
-            (string) $this->setting(self::DEFAULT_ROBOTS), (string) ($record['robots'] ?? ''),
-            $this->editLink->forTarget('design_config'));
+        return $this->row(
+            'robots',
+            'Robots meta',
+            self::FROM_SETTING,
+            'Setting',
+            self::DEFAULT_ROBOTS,
+            (string) $this->setting(self::DEFAULT_ROBOTS),
+            (string) ($record['robots'] ?? ''),
+            $this->editLink->forTarget('design_config')
+        );
     }
 
     /**
@@ -251,7 +359,9 @@ class SeoSources
             'key' => $key,
             'expected' => $expected === null ? null : $this->clip($expected),
             'served' => $served,
-            'matches' => $expected === null ? null : $this->comparable($field, $expected) === $this->comparable($field, $served),
+            'matches' => $expected === null
+                ? null
+                : $this->comparable($field, $expected) === $this->comparable($field, $served),
             'edit' => $edit,
         ];
     }

@@ -99,7 +99,11 @@ class SeoSchemaOfferRule implements RuleInterface
                 . 'the page as misleading.',
             'Find what writes the offer (the theme, or an SEO or rich snippets extension) and make it read the '
                 . 'final price. A full page cache entry from before a price change gives this too.',
-            ['stated' => $stated, 'price' => $product['price'] ?? null, 'price_excl_tax' => $product['price_excl_tax'] ?? null]
+            [
+                'stated' => $stated,
+                'price' => $product['price'] ?? null,
+                'price_excl_tax' => $product['price_excl_tax'] ?? null,
+            ]
         );
     }
 
@@ -122,7 +126,11 @@ class SeoSchemaOfferRule implements RuleInterface
 
         return $this->finding(
             'seo.schema_currency',
-            sprintf('The structured data prices this product in %s, and this store view shows %s.', implode(', ', $other), $actual),
+            sprintf(
+                'The structured data prices this product in %s, and this store view shows %s.',
+                implode(', ', $other),
+                $actual
+            ),
             'A price in the wrong currency is a wrong price, whatever the number.',
             'Make the offer use the store view\'s current currency, not the base currency.',
             ['stated' => $other, 'currency' => $actual]

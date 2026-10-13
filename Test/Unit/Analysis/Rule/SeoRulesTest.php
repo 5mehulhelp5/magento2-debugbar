@@ -124,8 +124,10 @@ class SeoRulesTest extends TestCase
     {
         $rule = new SeoSchemaOfferRule();
 
-        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => [$this->offer(['price' => '36.30'])]])));
-        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => [$this->offer(['price' => '30'])]])));
+        $offers = static fn (array ...$offers): array => ['product' => self::PRODUCT, 'offers' => $offers];
+
+        $this->assertSame([], $rule->apply($this->profile($offers($this->offer(['price' => '36.30'])))));
+        $this->assertSame([], $rule->apply($this->profile($offers($this->offer(['price' => '30'])))));
         $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => [
             $this->offer(['price' => '', 'low' => '25.00', 'high' => '40.00']),
         ]])));
@@ -133,8 +135,11 @@ class SeoRulesTest extends TestCase
             $this->offer(['price' => '50.00']),
             $this->offer(['price' => '36,30']),
         ]])), 'one variant at the product price is enough');
-        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => [$this->offer(['price' => ''])]])),
-            'no stated price is the Schema view\'s finding, not this one');
+        $this->assertSame(
+            [],
+            $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => [$this->offer(['price' => ''])]])),
+            'no stated price is the Schema view\'s finding, not this one'
+        );
     }
 
     #[Test]
@@ -147,7 +152,10 @@ class SeoRulesTest extends TestCase
         $ids = array_map(static fn ($f) => $f->toArray()['id'], $findings);
 
         $this->assertSame(['seo.schema_currency', 'seo.schema_stock'], $ids);
-        $this->assertStringContainsString('says InStock, and this product cannot be bought', $findings[1]->toArray()['message']);
+        $this->assertStringContainsString(
+            'says InStock, and this product cannot be bought',
+            $findings[1]->toArray()['message']
+        );
 
         $sellable = (new SeoSchemaOfferRule())->apply($this->profile([
             'product' => self::PRODUCT,
@@ -164,7 +172,11 @@ class SeoRulesTest extends TestCase
 
         $this->assertSame([], $rule->apply($this->profile(['offers' => $wrong])), 'a cached page has no product facts');
         $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => []])));
-        $this->assertSame([], $rule->apply($this->profile(['product' => self::PRODUCT, 'offers' => $wrong, 'status' => 404])));
+        $this->assertSame([], $rule->apply($this->profile([
+            'product' => self::PRODUCT,
+            'offers' => $wrong,
+            'status' => 404,
+        ])));
         $this->assertSame([], $rule->apply($this->profile([
             'product' => self::PRODUCT,
             'offers' => [$this->offer(['availability' => 'InStock']), $this->offer(['availability' => 'OutOfStock'])],
@@ -177,7 +189,14 @@ class SeoRulesTest extends TestCase
      */
     private function offer(array $values): array
     {
-        return ['price' => '36.30', 'low' => '', 'high' => '', 'currency' => 'EUR', 'availability' => 'InStock', ...$values];
+        return [
+            'price' => '36.30',
+            'low' => '',
+            'high' => '',
+            'currency' => 'EUR',
+            'availability' => 'InStock',
+            ...$values,
+        ];
     }
 
     /**

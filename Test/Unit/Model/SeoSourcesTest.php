@@ -63,8 +63,11 @@ class SeoSourcesTest extends TestCase
         $this->assertTrue($rows['title']['matches']);
         $this->assertSame('edit:product:42', $rows['title']['edit']);
 
-        $this->assertSame('design/head/default_description', $rows['description']['key'],
-            'an empty meta_description falls back to the store default');
+        $this->assertSame(
+            'design/head/default_description',
+            $rows['description']['key'],
+            'an empty meta_description falls back to the store default'
+        );
         $this->assertSame('edit:design_config:0', $rows['description']['edit']);
         $this->assertTrue($rows['description']['matches']);
 
@@ -119,7 +122,12 @@ class SeoSourcesTest extends TestCase
     #[Test]
     public function theHomePageIsReadFromTheCmsPageConfigurationNames(): void
     {
-        $this->cmsRow = ['title' => 'Home', 'meta_title' => '', 'meta_description' => 'Welcome.', 'content_heading' => ''];
+        $this->cmsRow = [
+            'title' => 'Home',
+            'meta_title' => '',
+            'meta_description' => 'Welcome.',
+            'content_heading' => '',
+        ];
 
         $rows = $this->byField($this->sources()->explain([
             'action' => 'cms_index_index',
@@ -160,40 +168,43 @@ class SeoSourcesTest extends TestCase
                 return 30.0;
             }
         };
-        $this->registry->register('current_product', new class (['type_id' => 'simple'], $amount) extends DataObject {
-            public function __construct(array $data, private readonly object $amount)
+        $price = new class ($amount) {
+            public function __construct(private readonly object $amount)
+            {
+            }
+
+            public function getAmount(): object
+            {
+                return $this->amount;
+            }
+        };
+        $priceInfo = new class ($price) {
+            public function __construct(private readonly object $price)
+            {
+            }
+
+            public function getPrice(string $code): object
+            {
+                return $this->price;
+            }
+        };
+        $product = new class (['type_id' => 'simple'], $priceInfo) extends DataObject {
+            public function __construct(array $data, private readonly object $priceInfo)
             {
                 parent::__construct($data);
             }
 
             public function getPriceInfo(): object
             {
-                return new class ($this->amount) {
-                    public function __construct(private readonly object $amount)
-                    {
-                    }
-
-                    public function getPrice(string $code): object
-                    {
-                        return new class ($this->amount) {
-                            public function __construct(private readonly object $amount)
-                            {
-                            }
-
-                            public function getAmount(): object
-                            {
-                                return $this->amount;
-                            }
-                        };
-                    }
-                };
+                return $this->priceInfo;
             }
 
             public function isSalable(): bool
             {
                 return false;
             }
-        });
+        };
+        $this->registry->register('current_product', $product);
 
         $this->assertSame(
             ['type' => 'simple', 'price' => 36.3, 'price_excl_tax' => 30.0, 'currency' => 'EUR', 'salable' => false],
@@ -219,8 +230,12 @@ class SeoSourcesTest extends TestCase
     private function sources(): SeoSources
     {
         $config = $this->createStub(ScopeConfigInterface::class);
-        $config->method('getValue')->willReturnCallback(static fn (string $path): ?string => self::SETTINGS[$path] ?? null);
-        $config->method('isSetFlag')->willReturnCallback(static fn (string $path): bool => (bool) (self::SETTINGS[$path] ?? false));
+        $config->method('getValue')->willReturnCallback(
+            static fn (string $path): ?string => self::SETTINGS[$path] ?? null
+        );
+        $config->method('isSetFlag')->willReturnCallback(
+            static fn (string $path): bool => (bool) (self::SETTINGS[$path] ?? false)
+        );
 
         $request = $this->createStub(HttpRequest::class);
         $request->method('getParam')->willReturn(null);
@@ -242,8 +257,12 @@ class SeoSourcesTest extends TestCase
         $pages->method('getMainTable')->willReturn('cms_page');
 
         $links = $this->createStub(AdminEditLink::class);
-        $links->method('forTarget')->willReturnCallback(static fn (string $type, int $id = 0): string => "edit:$type:$id");
+        $links->method('forTarget')->willReturnCallback(
+            static fn (string $type, int $id = 0): string => "edit:$type:$id"
+        );
 
-        return new SeoSources($this->registry, $config, $request, $stores, $pages, new HomePage($config, $pages), $links);
+        $homePage = new HomePage($config, $pages);
+
+        return new SeoSources($this->registry, $config, $request, $stores, $pages, $homePage, $links);
     }
 }

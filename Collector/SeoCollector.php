@@ -342,7 +342,8 @@ class SeoCollector extends AbstractCollector
      * The structured data types the server sent, from JSON-LD and microdata. Whether each
      * one is complete is the live Schema view's job; this is what the server committed to.
      *
-     * @return array{types: list<string>, json_ld_count: int, json_ld_invalid: int}
+     * @return array{types: list<string>, json_ld_count: int, json_ld_invalid: int,
+     *     offers: list<array{price: string, low: string, high: string, currency: string, availability: string}>}
      */
     private function schema(DOMXPath $xpath): array
     {
@@ -404,7 +405,10 @@ class SeoCollector extends AbstractCollector
         }
 
         $offers = [];
-        $types = array_map(fn (mixed $type): string => is_string($type) ? $this->shortType($type) : '', (array) ($data['@type'] ?? []));
+        $types = array_map(
+            fn (mixed $type): string => is_string($type) ? $this->shortType($type) : '',
+            (array) ($data['@type'] ?? [])
+        );
 
         if (array_intersect($types, self::OFFER_TYPES) !== []) {
             $offers[] = $this->offer(

@@ -125,6 +125,12 @@ Six views, each with a count of what needs a look:
   server sent next to what the page holds now, and marks each value a script changed: the
   title, description, canonical, robots, language, H1 and heading counts, and the number of
   JSON-LD blocks. A crawler that does not run JavaScript only gets the server's side.
+  **Where each value came from** names, for the title, description, H1, canonical and
+  robots, the product or category attribute, CMS page field or setting Magento takes it
+  from, with an **Edit** link to that screen. A value the page does not match is marked
+  **set elsewhere**: a plugin, observer, layout XML, theme or SEO extension changed it. A
+  product or category page served from the full page cache has no sources, because that
+  request never loaded the product; reload with the cache off.
 - **Headings**: H1 to H6 as an outline, with a missing or second H1, a skipped level, an empty
   heading and a hidden one flagged. Hover a row to outline the heading on the page; click it to
   scroll there.
@@ -326,6 +332,9 @@ and filter holding its evidence.
 | `seo.noindex` | A CMS page, category or product asks not to be indexed |
 | `seo.h1_multiple` | The server's HTML has more than one H1 |
 | `seo.h1_missing` | A CMS page, category or product has no H1 in the server's HTML |
+| `seo.schema_price` | A product page's structured data states a price the product does not sell for, in either tax mode |
+| `seo.schema_currency` | A product page's structured data prices it in another currency than the store view shows |
+| `seo.schema_stock` | A product page's structured data says in stock when it cannot be bought, or the reverse |
 | `collector.truncated` | A collector hit its cap, so its list is shorter than its count |
 
 A finding is a lead, not a verdict. `query.n_plus_one` is deliberately conservative and
