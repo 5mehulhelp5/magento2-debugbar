@@ -8,17 +8,17 @@ For working on Siteation_DebugBar itself. If you want to use it, read the
 | | |
 | --- | --- |
 | `Api/` | `CollectorInterface`, `RuleInterface`, `McpToolInterface` |
-| `Plugin/` | The entry hook and the six collection hooks |
+| `Plugin/` | The entry hook and the seven collection hooks |
 | `Collector/` | Ten collectors and the abstract they share |
 | `Analysis/` | Findings, rules, the query analyzer, the timeline, the comparer |
-| `Model/` | Config, the gate, the access key, the store, the redactor, the layout file lookup |
+| `Model/` | Config, the gate, the access key, the store, the redactor, the layout file lookup, SEO sources, the admin edit link |
 | `Presentation/` | Bar injection, the markdown report, the MCP presenter |
 | `Mcp/` | JSON-RPC server and six tools |
-| `Controller/Profile/` | `view`, `history`, `compare` |
+| `Controller/` | `Profile/`: `view`, `history`, `compare`; `Adminhtml/Entity/Edit`: the admin edit link |
 | `Console/` | `siteation:debugbar:mcp`, `siteation:debugbar:report` |
 | `src-js/` | Alpine sources for the bar; build output is committed |
 | `view/base/web/` | The committed build output |
-| `dev/` | `smoke`, an HTTP test over a running store, and `docs` |
+| `dev/` | `smoke`, an HTTP test over a running store, and `docs`, the guide renderer |
 
 PHP is edited in place. The package installs as a Composer path symlink, so nothing needs
 reinstalling after an edit.
@@ -41,8 +41,8 @@ In order:
 2. `ProfileManager` starts collecting. Every plugin records through it, and it holds a
    single boolean that the plugins branch on, so an unprofiled request pays a plugin hop and
    no config read.
-3. `proceed()` runs the application. The query, event, observer, block and cache plugins
-   record as they fire.
+3. `proceed()` runs the application. The query, event, observer, block, cache, layout and
+   page cache plugins record as they fire.
 4. `finalize()` asks each enabled collector for its section, builds the timeline, runs the
    rules, and hands the result to `ProfileStore`.
 5. `BarInjector` sets the profile header, marks the response unshareable, and injects the
@@ -72,6 +72,22 @@ than being gathered and hidden.
 Add the section to `src-js/src/sections.js` as well, or the panel will never be drawn.
 `Test/Unit/Analysis/RuleSectionTest.php` reads that list from PHP, so the two cannot drift.
 
+## Adding a section
+
+A section is what the sidebar lists. It does not need a collector: Alpine, Magewire, the
+data layer and Web Vitals read the live page and have none.
+
+1. An entry in `SECTIONS` in `src-js/src/sections.js`: `id`, `label`, a `lead` that says what
+   the panel is for, and `graded: false` when no rule can produce a finding for it.
+2. Its badge in `countFor()` in the same file, or `null` for none.
+3. Its panel in `src-js/src/template.js`, inside `isSection('<id>')`. Sub views use
+   `subTabs()` from `tabs.js`.
+4. An option in `Model\Config\Source\Sections`, with the same id, so it can be switched off.
+   Findings and Overview are left out of that list on purpose.
+
+The browser suite walks every section and every sub view, so a new one is covered as soon as
+it is in the list.
+
 ## Adding a rule
 
 Implement `Api\RuleInterface` and register it in the rules array in `etc/di.xml`. A rule that
@@ -82,8 +98,9 @@ from, what to check next, and the section and filter holding its evidence. Point
 at a filter that actually narrows: mapping `repeated` to `all` is no filter at all, which is
 a mistake this codebase has already made once.
 
-Twelve rules ship, producing sixteen kinds of finding. `RequestErrorRule`,
-`RepeatedQueryRule`, `SeoCanonicalRule` and `SeoHeadingRule` emit two each.
+Thirteen rules ship, producing nineteen kinds of finding. `RequestErrorRule`,
+`RepeatedQueryRule`, `SeoCanonicalRule` and `SeoHeadingRule` emit two each, and
+`SeoSchemaOfferRule` three.
 
 ## The profile
 
@@ -160,7 +177,9 @@ everything else is an external file, so `Magento_Csp` needs no nonce and no `uns
 File by file: `state.js` is the Alpine component, `template.js` the markup, `sections.js` the
 section list, `header.js` the header used by both the dock and the sheet, `palette.js` the
 command list, `alpine.js` and `magewire.js` the two live readers, `early.js` the request
-watcher and error capture that loads in the head.
+watcher and error capture that loads in the head. `nav.js` draws the sidebar, `tabs.js` the
+sub views, `dock.js` keeps the collapsed bar inside the screen, `requests.js` brings the
+early watcher's requests into the bar, and `transport.js` is every JSON read the bar makes.
 
 `seo.js` holds the SEO checks as plain functions that take a `Document`, plus an environment
 for what only a browser can answer (is it visible, how big is it drawn, where is the first
@@ -222,6 +241,15 @@ against.
 `bin/magento siteation:debugbar:mcp`, hand rolled JSON-RPC 2.0 over newline delimited stdio,
 six read only tools. It starts in about 0.2 seconds because it only reads files.
 
+| Tool | Class |
+| --- | --- |
+| `list_debug_profiles` | `Mcp\Tool\ListProfiles` |
+| `get_debug_findings` | `Mcp\Tool\GetFindings` |
+| `get_debug_profile_section` | `Mcp\Tool\GetSection` |
+| `inspect_debug_queries` | `Mcp\Tool\InspectQueries` |
+| `compare_debug_profiles` | `Mcp\Tool\CompareProfiles` |
+| `get_debug_seo` | `Mcp\Tool\GetSeo` |
+
 Add a tool by implementing `Api\McpToolInterface` and registering it in the tools array in
 `etc/di.xml`. Shaping belongs in `Presentation\McpProfilePresenter`, which bounds every
 response by item count and byte budget and labels the payload as recorded data.
@@ -234,10 +262,10 @@ for out of the response rather than pushing it over.
 ```
 vendor/bin/phpcs  --standard=<pkg>/phpcs.xml.dist <pkg>
 vendor/bin/phpstan analyse -c <pkg>/phpstan.neon.dist
-vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 288 tests
-<pkg>/dev/smoke https://your-store.test admin                  # 31 assertions over HTTP
+vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 291 tests
+<pkg>/dev/smoke https://your-store.test admin                  # 31 checks over HTTP
 cd <pkg>/src-js && npm test                                    # 163, no store needed
-cd <pkg>/src-js && npm run test:browser                        # 29, needs the store up
+cd <pkg>/src-js && npm run test:browser                        # 30, needs the store up
 ```
 
 **The supported PHP range is checked separately**, because `phpstan.neon.dist` has to keep
@@ -254,6 +282,31 @@ composer global require phpstan/phpstan:^2.2
 That pass is what says the constraint is honest. It reports a typed class constant or a
 `json_validate()` as unavailable rather than waiting for a 8.2 install to find it at runtime.
 Change the constraint in `composer.json` and change the range beside it.
+
+### dev/smoke
+
+```
+dev/smoke <base-url> [admin-path]
+dev/smoke https://your-store.test admin
+```
+
+An end to end check over HTTP, needing `bash`, `curl` and `python3`. It loads the cart page
+and checks the bar is injected the way it should be (profile header, the early watcher, the
+profile embedded as data with summaries only, the value policy and editor root), reads that
+profile back through `profile/view` section by section, including the SEO facts and the
+markdown format, lists the history, compares two stored profiles, refuses bad ids, and checks
+that the admin, GraphQL and REST are profiled with their bodies untouched and that the bar's
+own endpoint is not profiled. The admin path defaults to `admin`.
+
+Run it against a store in developer mode with no access key, or every check that needs the
+profile header fails. A check that cannot run, such as a compare on a store holding only one
+profile, is counted as skipped rather than passed. It exits non-zero when anything fails, and
+64 when no URL is given.
+
+### dev/docs
+
+`php dev/docs` renders `docs/user-guide.md` and `docs/developer-guide.md` to the HTML beside
+them. See [Documentation](#documentation).
 
 Magento's integration framework is deliberately not used. It needs its own database and
 install and runs in minutes; `dev/smoke` drives a real store over HTTP across all four areas
@@ -363,6 +416,14 @@ php dev/docs
 
 Edit the `.md`. The `.html` is a view of it, and `dev/docs` is the only place the two can
 differ. It needs no dependencies, for the same reason the bar ships prebuilt.
+
+It understands the Markdown the guides use: headings, paragraphs, lists without nesting,
+fenced code, tables, inline code, bold, links and images. Write an image reference style,
+`![alt][name]` with a `[name]: ../assets/file.webp "Title"` line at the end of the guide, so
+the same path works on GitHub and from the rendered page.
+
+The screenshots live in `assets/` and are WebP. The README and the user guide both use
+them.
 
 ## Releasing
 

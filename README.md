@@ -18,11 +18,10 @@ inspects exact data instead of guessing from a screenshot.
 
 ![preview-overview]
 
-[preview-overview]: ./assets/overview.webp "The inspector open on a Hyva checkout, showing the request as stages"
+[preview-overview]: ./assets/overview.webp "The bar open on Overview, on a store home page, showing the request as stages"
 
-**1.1.1.** Verified against a running store: 202 unit tests, 67 for the bar's own
-JavaScript, 16 driving it in a browser, and a 30 assertion smoke suite across all four
-areas.
+Verified against a running store: 291 PHPUnit tests, 163 for the bar's own JavaScript, 30
+driving it in a browser, and a 31 check smoke suite across all four areas.
 
 ## Requirements
 
@@ -31,8 +30,8 @@ areas.
 * Any deploy mode. Outside developer mode it needs an access key, and without one it stays
   off.
 * No frontend requirement. It renders in a shadow root with its own bundled Alpine, so it
-  works on Hyvä and on Luma alike. The Alpine and Magewire sections read whatever the page
-  has; a store with neither simply does not see them.
+  works on Hyvä, on Luma and on other themes alike. The Alpine and Magewire sections read
+  whatever the page has; on a store with neither they say so.
 
 ## Install
 
@@ -51,47 +50,58 @@ Siteation modules.
 
 ![preview-admin]
 
-[preview-admin]: ./assets/admin-configuration.webp "The module's settings in the Magento admin, with the collapsed bar at the foot of the page"
+[preview-admin]: ./assets/admin-configuration.webp "The module's settings under Stores > Configuration > Siteation > Debug Bar"
 
 ## Documentation
 
-* **[User guide](docs/user-guide.md)** ([HTML](docs/user-guide.html)) — reading the bar, the
-  sections, findings, comparing requests, editor links, debugging a live site, every
-  setting, and what to check when it does not appear.
+* **[User guide](docs/user-guide.md)** ([HTML](docs/user-guide.html)) — reading the bar,
+  every section and its sub views, findings, comparing requests, the MCP tools, editor links,
+  debugging a live site, every setting, and what to check when it does not appear.
 * **[Developer guide](docs/developer-guide.md)** ([HTML](docs/developer-guide.html)) — how a
-  request becomes a profile, adding a collector or a rule, the bar's build, the MCP server,
-  the test suites, and the traps that have cost hours.
+  request becomes a profile, adding a collector, a rule or a section, the bar's build, the
+  MCP server, the test suites and the `dev/` scripts, and the traps that have cost hours.
 * `docs/SKILL.md` — an agent skill describing how to use the MCP tools well. Point your
   agent at it, or copy it into your own skills directory.
 
 ## What you get
 
-Twelve sections over one request: findings, overview, a timeline waterfall, queries with the
-application frame each came from, block render times, observers that actually ran, every
-dispatched event, cache hit rates by key prefix, the plugins built for the request, the
-page's live Alpine and Magewire components, and the history of every profile still on disk.
+Seventeen sections over one request: findings, overview, a timeline waterfall, queries with
+the application frame each came from, block render times, observers that actually ran, every
+dispatched event, cache hit rates by key prefix, why the page was or was not put in the full
+page cache, the layout handles and the XML files behind them, the plugins built for the
+request, the page's live Alpine and Magewire components, SEO, the data layer, Web Vitals,
+and the history of every profile still on disk, with a compare view.
 
-The last two read the live page rather than the stored profile, so they show what is in the
-browser now: every component with its state under the same redaction policy, and for
-Magewire the state it posts back and receives again on every update.
+Alpine, Magewire, SEO, Data layer and Web Vitals read the live page rather than the stored
+profile, so they show what is in the browser now. Alpine and Magewire state and data layer
+values go through the same value policy as the profile. SEO also keeps what the server sent,
+and puts the two side by side.
 
-| Alpine | Magewire |
-| ------ | -------- |
-| ![preview-alpine] | ![preview-magewire] |
+| Findings | SEO |
+| -------- | --- |
+| ![preview-findings] | ![preview-seo] |
+| **Page cache** | **Alpine** |
+| ![preview-page-cache] | ![preview-alpine] |
 
+[preview-findings]: ./assets/findings.webp "Findings, worst first, each with why it matters and what to check next"
+[preview-seo]: ./assets/seo.webp "The SEO overview, with the server's HTML next to the live page"
+[preview-page-cache]: ./assets/page-cache.webp "The Page cache section, with Magento's own reasons a page was not cached"
 [preview-alpine]: ./assets/alpine.webp "The Alpine section listing every component on the page with its state"
-[preview-magewire]: ./assets/magewire.webp "The Magewire section, with the state each component posts back on every update"
 
 **Findings** are the module's own conclusions, worst first: errors and exceptions, slow
 requests, slow and repeated queries, N+1s built from interpolated ids, slow blocks and
-observers, cache prefixes that miss more than they hit, and collectors that hit their cap.
-Each one says what is wrong, why it matters, where it came from, and what to check next.
+observers, cache prefixes that miss more than they hit, pages that were not put in the full
+page cache, SEO problems in the HTML the server sent (canonical, noindex, H1, and structured
+data offers that do not match the product), and collectors that hit their cap. Each one says
+what is wrong, why it matters, where it came from, and what to check next.
 
 **Comparison** answers "what did my change cost": profile a page, change something, profile
-it again, and diff duration, memory, queries, cache, findings, and the query shapes added or
-removed.
+it again, and diff duration, memory, queries, cache, findings, the query shapes added or
+removed, and the SEO facts the server sent that changed.
 
-**For an agent**, six read only MCP tools over stdio:
+**For an agent**, six read only MCP tools over stdio: `list_debug_profiles`,
+`get_debug_findings`, `get_debug_profile_section`, `inspect_debug_queries`,
+`compare_debug_profiles` and `get_debug_seo`.
 
 ```
 claude mcp add --scope local siteation-debugbar -- php /abs/path/to/bin/magento siteation:debugbar:mcp

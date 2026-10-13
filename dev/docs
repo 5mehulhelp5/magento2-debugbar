@@ -13,7 +13,9 @@ declare(strict_types=1);
  * No dependencies, and none wanted: the module ships its JavaScript prebuilt precisely so
  * installing it needs no toolchain, and a docs build that needed one would undo that. The
  * Markdown it understands is the Markdown these guides use, listed in inline(): headings,
- * paragraphs, lists, fenced code, tables, and inline code, bold and links.
+ * paragraphs, lists, fenced code, tables, and inline code, bold, links and images. Images are
+ * written reference style, `![alt][name]` with a `[name]: ../assets/file.webp "Title"` line,
+ * so the same relative path works on GitHub and from the rendered page beside the Markdown.
  *
  * Run from anywhere: php dev/docs
  */
@@ -73,6 +75,18 @@ function siblingLinks(string $html): string
 function render(string $markdown): string
 {
     $lines = preg_split('/\R/', $markdown) ?: [];
+    $definitions = [];
+
+    // Reference definitions are lifted out first, so an image can name one defined further
+    // down, which is where these guides keep them.
+    foreach ($lines as $index => $line) {
+        if (preg_match('/^\[([^\]]+)\]:\s+(\S+)(?:\s+"([^"]*)")?\s*$/', $line, $match)) {
+            $definitions[strtolower($match[1])] = ['src' => $match[2], 'title' => $match[3] ?? ''];
+            unset($lines[$index]);
+        }
+    }
+
+    references($definitions);
     $out = [];
     $list = null;
     $fence = null;
@@ -267,6 +281,25 @@ function inline(string $text): string
     ) ?? $text;
 
     $text = escape($text);
+    $text = preg_replace_callback(
+        '/!\[([^\]]*)\]\[([^\]]+)\]/',
+        static function (array $m): string {
+            $reference = references()[strtolower(html_entity_decode($m[2], ENT_QUOTES))] ?? null;
+
+            return $reference === null ? $m[0] : sprintf(
+                '<img src="%s" alt="%s" title="%s" loading="lazy">',
+                escape($reference['src']),
+                $m[1],
+                escape($reference['title'])
+            );
+        },
+        $text
+    ) ?? $text;
+    $text = preg_replace(
+        '/!\[([^\]]*)\]\(([^)\s]+)\)/',
+        '<img src="$2" alt="$1" loading="lazy">',
+        $text
+    ) ?? $text;
     $text = preg_replace('/\*\*([^*]+)\*\*/', '<strong>$1</strong>', $text) ?? $text;
     $text = preg_replace(
         '/\[([^\]]+)\]\(([^)\s]+)\)/',
@@ -279,6 +312,23 @@ function inline(string $text): string
         static fn (array $m): string => $spans[(int) $m[1]],
         $text
     ) ?? $text;
+}
+
+/**
+ * The image references of the guide being rendered, set once per guide by render().
+ *
+ * @param array<string, array{src: string, title: string}>|null $set
+ * @return array<string, array{src: string, title: string}>
+ */
+function references(?array $set = null): array
+{
+    static $references = [];
+
+    if ($set !== null) {
+        $references = $set;
+    }
+
+    return $references;
 }
 
 function escape(string $text): string
@@ -382,6 +432,14 @@ function page(string $title, string $slug, string $body): string
           li > code:first-child { font-weight: 600; }
 
           a { color: var(--accent); }
+          img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 0 0 1.25rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+          }
           a.anchor { color: inherit; text-decoration: none; }
           a.anchor:hover { text-decoration: underline; }
 
