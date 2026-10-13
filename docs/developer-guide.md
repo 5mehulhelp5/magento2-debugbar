@@ -85,8 +85,11 @@ data layer and Web Vitals read the live page and have none.
 4. An option in `Model\Config\Source\Sections`, with the same id, so it can be switched off.
    Findings and Overview are left out of that list on purpose.
 
-The browser suite walks every section and every sub view, so a new one is covered as soon as
-it is in the list.
+The browser suite walks every section and every sub view, so a new one is checked for a
+binding that throws as soon as it is in the list. That walk does not wait for the section's
+rows or look at them, so a section that renders empty passes it. Give a new section a test of
+its own that waits for its items and checks what they show. A section that reads something
+the test store lacks, as Magewire does, gets a stand-in installed before the page's scripts.
 
 ## Adding a rule
 
@@ -266,7 +269,7 @@ vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist \
     --bootstrap vendor/autoload.php                            # 304 tests
 <pkg>/dev/smoke https://your-store.test admin                  # 31 checks over HTTP
 cd <pkg>/src-js && npm test                                    # 163, no store needed
-cd <pkg>/src-js && npm run test:browser                        # 30, needs the store up
+cd <pkg>/src-js && npm run test:browser                        # 34, needs the store up
 ```
 
 **The supported PHP range is checked separately**, because `phpstan.neon.dist` has to keep

@@ -1064,3 +1064,174 @@ test.describe('the Layout section', () => {
     expect(await ourAlpineErrors(page)).toEqual([])
   })
 })
+
+test.describe('the Events section', () => {
+  test('lists what was dispatched, and its filters narrow the list rather than empty it', async ({ page }) => {
+    await openBar(page)
+    await state(page, (data) => { data.section = 'events' })
+    await waitForState(page, (data) => data.itemsOf('events').length > 0)
+
+    const names = await state(page, (data) => data.itemsOf('events').map((event) => event.name))
+    const rows = page.locator('.ndb-sheet table tbody tr')
+
+    // Dispatched on every controller action, the second one named for the action itself.
+    expect(names).toContain('controller_action_predispatch')
+    expect(names).toContain('controller_action_predispatch_checkout_cart_index')
+    await expect(rows).toHaveCount(names.length)
+
+    // The pill is the summary's count, the rows are the payload's. They come from the same
+    // request, so with nothing dropped they agree.
+    await page.locator('.ndb-sheet .ndb-controls button.ndb-chip', { hasText: 'Unobserved' }).click()
+    await waitForState(page, (data) => data.eventFilter === 'unobserved')
+    const unobserved = await state(page, (data) => data.visibleEvents.map((event) => event.observer_count))
+    expect(unobserved.length).toBeGreaterThan(0)
+    expect(unobserved.length).toBeLessThan(names.length)
+    expect(unobserved.every((count) => count === 0)).toBe(true)
+    if (await state(page, (data) => !data.events.truncated)) {
+      await expect(page.locator('.ndb-sheet .ndb-controls button.ndb-chip .ndb-pill'))
+        .toHaveText(String(unobserved.length))
+    }
+    await expect(rows).toHaveCount(unobserved.length)
+
+    await page.locator('.ndb-sheet .ndb-controls button.ndb-chip', { hasText: /^All$/ }).click()
+    await page.locator('.ndb-sheet input.ndb-search').fill('checkout_cart')
+    await waitForState(page, (data) => data.eventSearch === 'checkout_cart')
+    const found = await state(page, (data) => data.visibleEvents.map((event) => event.name))
+    expect(found).toContain('controller_action_predispatch_checkout_cart_index')
+    expect(found.every((name) => name.includes('checkout_cart'))).toBe(true)
+    await expect(rows).toHaveCount(found.length)
+
+    await page.locator('.ndb-sheet input.ndb-search').fill('no_event_is_called_this')
+    await expect(page.locator('.ndb-sheet .ndb-empty', { hasText: 'No events match.' })).toBeVisible()
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+
+  test('an event with observers is the event the Observers section ran them for', async ({ page }) => {
+    // Two collectors, one request. An event counted as unobserved while its observer is
+    // listed would send the reader looking for a listener that is already there.
+    await openBar(page)
+    await state(page, (data) => { data.section = 'events' })
+    await waitForState(page, (data) => data.itemsOf('events').length > 0)
+    await state(page, (data) => { data.section = 'observers' })
+    await waitForState(page, (data) => data.itemsOf('observers').length > 0)
+
+    const observed = await state(page, (data) => data.itemsOf('events')
+      .filter((event) => event.observer_count > 0).map((event) => event.name).sort())
+    const ran = await state(page, (data) => [...new Set(data.itemsOf('observers')
+      .map((observer) => observer.event))].sort())
+
+    expect(ran.length).toBeGreaterThan(0)
+    expect(observed).toEqual(ran)
+  })
+})
+
+test.describe('the Observers section', () => {
+  test('lists each observer with its class and event, and searches all three', async ({ page }) => {
+    await openBar(page)
+    await state(page, (data) => { data.section = 'observers' })
+    await waitForState(page, (data) => data.itemsOf('observers').length > 0)
+
+    const all = await state(page, (data) => data.itemsOf('observers').length)
+    const rows = page.locator('.ndb-sheet table tbody tr')
+    await expect(rows).toHaveCount(all)
+
+    const first = await state(page, (data) => data.visibleObservers[0])
+    await expect(rows.first().locator('td').nth(0).locator('span')).toHaveText(first.name)
+    await expect(rows.first().locator('td').nth(0).locator('small')).toHaveText(first.instance)
+    await expect(rows.first().locator('td').nth(1)).toHaveText(first.event)
+    expect(first.instance).toMatch(/^[A-Z][A-Za-z0-9]*\\/)
+
+    // By event, by observer name and by class: a reader arrives with any one of them. The
+    // class is searched by its namespace, which neither of the other two columns contains.
+    const namespace = first.instance.split('\\').slice(0, 2).join('\\')
+    for (const term of [first.event, first.name, namespace]) {
+      await page.locator('.ndb-sheet input.ndb-search').fill(term)
+      await waitForState(page, (data) => data.observerSearch !== '')
+      const shown = await state(page, (data) => data.visibleObservers)
+      const needle = term.toLowerCase()
+
+      expect(shown.length, term).toBeGreaterThan(0)
+      expect(shown.every((observer) => [observer.name, observer.event, observer.instance]
+        .some((field) => String(field).toLowerCase().includes(needle))), term).toBe(true)
+      await expect(rows).toHaveCount(shown.length)
+    }
+
+    await page.locator('.ndb-sheet input.ndb-search').fill('no_observer_is_called_this')
+    await expect(page.locator('.ndb-sheet .ndb-empty', { hasText: 'No observers match.' })).toBeVisible()
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+})
+
+test.describe('the Magewire section', () => {
+  test('says so when the page has no Magewire', async ({ page }) => {
+    await openBar(page)
+    test.skip(await page.evaluate(() => Boolean(window.Magewire || window.magewire)),
+      'this store puts Magewire on the cart')
+
+    await state(page, (data) => { data.section = 'magewire' })
+    await expect(page.locator('.ndb-sheet .ndb-note', { hasText: 'No Magewire on this page.' })).toBeVisible()
+    await expect(page.locator('.ndb-sheet .ndb-tabs')).toBeHidden()
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+
+  test('lists a page\'s components, opens one, and records its round trips', async ({ page }) => {
+    // A stand-in with the shape the section reads, installed before the page's scripts the
+    // way Magewire loads before the bar. The test store has no Magewire of its own, and a
+    // section that only ever met its empty state would pass this suite showing nothing.
+    await page.addInitScript(() => {
+      const hooks = {}
+
+      window.__magewireHooks = hooks
+      window.Magewire = {
+        components: {
+          componentsById: {
+            c1: {
+              fingerprint: { id: 'c1', name: 'cart-totals', resolver: 'layout', handle: 'checkout_cart_index' },
+              serverMemo: { data: { qty: 2, coupon: 'SUMMER' }, children: {} },
+              effects: { listeners: ['cartUpdated'] },
+            },
+          },
+        },
+        hook(name, callback) {
+          (hooks[name] = hooks[name] || []).push(callback)
+        },
+      }
+    })
+
+    await openBar(page)
+    await state(page, (data) => { data.section = 'magewire' })
+    await waitForState(page, (data) => data.magewireComponents.length === 1)
+    await expect(page.locator('.ndb-sheet .ndb-note', { hasText: 'No Magewire on this page.' })).toBeHidden()
+
+    const component = page.locator('.ndb-sheet li.ndb-alpine').first()
+    await expect(component.locator('.ndb-alpine-name')).toHaveText('cart-totals')
+    await expect(component.locator('.ndb-alpine-path')).toHaveText('layout · 2 properties · 1 listener')
+    await component.locator('button.ndb-alpine-head').click()
+    await expect(component.locator('pre.ndb-json')).toContainText('"qty"')
+
+    await page.evaluate(() => {
+      const fire = (name, ...args) => window.__magewireHooks[name].forEach((callback) => callback(...args))
+      const component = window.Magewire.components.componentsById.c1
+      const update = (method) => ({
+        component,
+        updateQueue: [{ type: 'callMethod', payload: { method } }],
+      })
+
+      fire('message.sent', update('applyCoupon'), component)
+      fire('message.processed', update('applyCoupon'), component)
+      fire('message.sent', update('removeItem'), component)
+      fire('message.failed', update('removeItem'), component)
+    })
+
+    await state(page, (data) => { data.magewireTab = 'updates' })
+    const updates = page.locator('.ndb-sheet [data-ndb-show="magewireTab === \'updates\'"] li.ndb-alpine')
+    await expect(updates).toHaveCount(2)
+    // Newest first.
+    await expect(updates.nth(0).locator('.ndb-alpine-name')).toHaveText('cart-totals removeItem()')
+    await expect(updates.nth(0).locator('.ndb-tag.is-bad')).toBeVisible()
+    await expect(updates.nth(1).locator('.ndb-alpine-name')).toHaveText('cart-totals applyCoupon()')
+    await expect(updates.nth(1).locator('.ndb-tag.is-bad')).toBeHidden()
+    await expect(updates.nth(1).locator('.ndb-pill')).toHaveText(/^\d+(\.\d)? ms$/)
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+})
