@@ -181,8 +181,8 @@ npm run build         # or npm run dev, which watches the main bundle</code></pr
 <h2 id="testing"><a class="anchor" href="#testing">Testing</a></h2>
 <pre><code>vendor/bin/phpcs  --standard=&lt;pkg&gt;/phpcs.xml.dist &lt;pkg&gt;
 vendor/bin/phpstan analyse -c &lt;pkg&gt;/phpstan.neon.dist
-vendor/bin/phpunit --configuration &lt;pkg&gt;/phpunit.xml.dist      # 267 tests
-&lt;pkg&gt;/dev/smoke https://your-store.test admin                  # 30 assertions over HTTP
+vendor/bin/phpunit --configuration &lt;pkg&gt;/phpunit.xml.dist      # 268 tests
+&lt;pkg&gt;/dev/smoke https://your-store.test admin                  # 31 assertions over HTTP
 cd &lt;pkg&gt;/src-js &amp;&amp; npm test                                    # 159, no store needed
 cd &lt;pkg&gt;/src-js &amp;&amp; npm run test:browser                        # 27, needs the store up</code></pre>
 <p><strong>The supported PHP range is checked separately</strong>, because <code>phpstan.neon.dist</code> has to keep working with the PHPStan a Magento install carries, and that one is pinned to 1.x by Magento and by rector. <code>phpstan-versions.neon.dist</code> layers the range from <code>composer.json</code> on top of it and needs PHPStan 2.1 or newer, so bring your own and run it from the Magento root, where it finds the autoloader:</p>
