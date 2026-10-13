@@ -266,9 +266,9 @@ for out of the response rather than pushing it over.
 vendor/bin/phpcs  --standard=<pkg>/phpcs.xml.dist <pkg>
 vendor/bin/phpstan analyse -c <pkg>/phpstan.neon.dist
 vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist \
-    --bootstrap vendor/autoload.php                            # 336 tests
+    --bootstrap vendor/autoload.php                            # 345 tests
 <pkg>/dev/smoke https://your-store.test admin                  # 31 checks over HTTP
-cd <pkg>/src-js && npm test                                    # 163, no store needed
+cd <pkg>/src-js && npm test                                    # 168, no store needed
 cd <pkg>/src-js && npm run test:browser                        # 34, needs the store up
 ```
 
