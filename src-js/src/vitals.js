@@ -53,6 +53,22 @@ const SESSION_GAP_MS = 1000
 const SESSION_MAX_MS = 5000
 
 /**
+ * The fewest interactions trimEntries keeps: the slowest hundred.
+ *
+ * INP is the 98th percentile, which reaches one place further down the slowest for every
+ * fifty interactions. An interaction that ends up within reach was within reach at every
+ * earlier read too, because interactions are only ever added, so none is trimmed that is
+ * later needed while the reach stays within this. That makes INP exact up to 5000
+ * interactions on one page. Past that, the reach is kept, but an interaction trimmed
+ * earlier can no longer come back, so it is close rather than exact. Google's web-vitals
+ * library keeps ten.
+ */
+export const KEPT_INTERACTIONS = 100
+
+/** The session windows trimEntries keeps: the worst one, and the latest after it. */
+export const KEPT_SHIFT_WINDOWS = 20
+
+/**
  * @param {string} metric
  * @param {number|null} value
  * @returns {''|'good'|'needs-improvement'|'poor'} '' when there is nothing to rate
@@ -160,17 +176,16 @@ function isOwn(node, own) {
 }
 
 /**
- * CLS is the worst session window, not the sum of every shift: a long-lived page would
- * otherwise only ever get worse.
+ * The shifts CLS counts, grouped into session windows.
+ *
+ * A shift right after an input is the page answering it, which is not a surprise. A shift
+ * only the bar took part in is not the page's.
  *
  * @param {Array<object>} entries layout-shift entries, in order
  * @param {(node: Element) => boolean} own whether a node belongs to the bar
- * @param {ReturnType<typeof registry>} found
- * @returns {{value: number|null, shifts: Array<object>}}
+ * @returns {Array<Array<object>>}
  */
-export function cumulativeLayoutShift(entries, own, found) {
-  // A shift right after an input is the page answering it, which is not a surprise. A shift
-  // only the bar took part in is not the page's.
+export function sessionWindows(entries, own) {
   const counted = entries.filter((entry) => !entry.hadRecentInput
     && !((entry.sources || []).length > 0 && entry.sources.every((source) => isOwn(source.node, own))))
 
@@ -191,8 +206,43 @@ export function cumulativeLayoutShift(entries, own, found) {
     }
   })
 
-  const sums = windows.map((window) => window.reduce((sum, entry) => sum + entry.value, 0))
+  return windows
+}
+
+/**
+ * @param {Array<object>} window
+ * @returns {number}
+ */
+function windowSum(window) {
+  return window.reduce((sum, entry) => sum + entry.value, 0)
+}
+
+/**
+ * CLS is the worst session window, not the sum of every shift: a long-lived page would
+ * otherwise only ever get worse.
+ *
+ * @param {Array<object>} entries layout-shift entries, in order
+ * @param {(node: Element) => boolean} own whether a node belongs to the bar
+ * @param {ReturnType<typeof registry>} found
+ * @param {WeakMap<object, number>} numbers each window's number, by its first shift, kept
+ *   across reads so trimming earlier windows does not renumber the rest
+ * @returns {{value: number|null, shifts: Array<object>}}
+ */
+export function cumulativeLayoutShift(entries, own, found, numbers = new WeakMap()) {
+  const windows = sessionWindows(entries, own)
+  const sums = windows.map(windowSum)
   const worst = sums.length ? sums.indexOf(Math.max(...sums)) : -1
+
+  // Numbered by their first shift, which stays first however the list is trimmed, so a
+  // window keeps its number when the ones before it are dropped. One not seen before is
+  // the next after the window ahead of it, because windows only ever start at the end.
+  let number = 0
+  const numbered = windows.map((window) => {
+    number = numbers.get(window[0]) ?? number + 1
+    numbers.set(window[0], number)
+
+    return number
+  })
 
   const shifts = []
 
@@ -202,7 +252,7 @@ export function cumulativeLayoutShift(entries, own, found) {
         at: Math.round(entry.startTime),
         value: entry.value,
         display: display('cls', entry.value),
-        window: windowIndex + 1,
+        window: numbered[windowIndex],
         worst: windowIndex === worst,
         sources: (entry.sources || [])
           .filter((source) => !isOwn(source.node, own))
@@ -229,9 +279,11 @@ export function cumulativeLayoutShift(entries, own, found) {
  * @param {number} interactionCount performance.interactionCount where the browser has it
  * @param {(node: Element) => boolean} own
  * @param {ReturnType<typeof registry>} found
+ * @param {{seen: number, measured: number}|null} totals the interactions counted so far, when
+ *   the entries have been trimmed and no longer hold every one
  * @returns {{value: number|null, interaction: object|null, count: number, unseen: number}}
  */
-export function interactionToNextPaint(entries, interactionCount, own, found) {
+export function interactionToNextPaint(entries, interactionCount, own, found, totals = null) {
   /** @type {Map<number, object>} the longest entry of each interaction */
   const longest = new Map()
   /** @type {Set<number>} every interaction seen, the bar's own included */
@@ -250,12 +302,13 @@ export function interactionToNextPaint(entries, interactionCount, own, found) {
     if (!known || entry.duration > known.duration) longest.set(entry.interactionId, entry)
   })
 
-  const unseen = Math.max(0, (interactionCount || 0) - seen.size)
+  const unseen = Math.max(0, (interactionCount || 0) - (totals ? totals.seen : seen.size))
   const ranked = Array.from(longest.values()).sort((a, b) => b.duration - a.duration)
+  const measured = totals ? totals.measured : ranked.length
 
   if (ranked.length === 0) return { value: null, interaction: null, count: 0, unseen }
 
-  const total = Math.max(interactionCount || 0, ranked.length)
+  const total = Math.max(interactionCount || 0, measured)
   const chosen = ranked[Math.min(ranked.length - 1, Math.floor(total / 50))]
 
   return {
@@ -266,7 +319,7 @@ export function interactionToNextPaint(entries, interactionCount, own, found) {
       label: elementLabel(chosen.target) || 'an element no longer on the page',
       index: found.add(chosen.target),
     },
-    count: ranked.length,
+    count: measured,
     unseen,
   }
 }
@@ -321,21 +374,32 @@ export function emptyVitals() {
  * @property {(node: Element) => boolean} own whether a node belongs to the bar
  * @property {Array<Element>} [known] the elements an earlier read returned, so an index the
  *   panel already holds keeps pointing at the same element
+ * @property {{seen: number, measured: number}|null} [interactions] from countInteractions,
+ *   for entries that trimEntries has trimmed
+ * @property {WeakMap<object, number>} [windowNumbers] kept across reads, for the same reason
  */
 
 /**
  * @param {VitalsInput} input
  * @returns {{model: object, elements: Array<Element>}}
  */
-export function inspectVitals({ entries, supported, interactionCount = 0, own = () => false, known = [] }) {
+export function inspectVitals({
+  entries,
+  supported,
+  interactionCount = 0,
+  own = () => false,
+  known = [],
+  interactions = null,
+  windowNumbers = new WeakMap(),
+}) {
   const found = registry(known)
   const of = (type) => entries[type] || []
   const navigation = of('navigation')[0]
   const activation = (navigation && navigation.activationStart) || 0
 
   const lcp = largestContentfulPaint(of('largest-contentful-paint'), activation, found)
-  const cls = cumulativeLayoutShift(of('layout-shift'), own, found)
-  const inp = interactionToNextPaint(of('event'), interactionCount, own, found)
+  const cls = cumulativeLayoutShift(of('layout-shift'), own, found, windowNumbers)
+  const inp = interactionToNextPaint(of('event'), interactionCount, own, found, interactions)
 
   const values = {
     lcp: lcp.value,
@@ -372,4 +436,104 @@ export function inspectVitals({ entries, supported, interactionCount = 0, own = 
     },
     elements: found.elements,
   }
+}
+
+/**
+ * Adds the interactions in these event entries to the running sets INP is counted from.
+ *
+ * The sets hold interaction ids, one number each. The entries they came from hold the
+ * element that was interacted with, which is what trimEntries can then let go of.
+ *
+ * @param {Array<object>} events event entries
+ * @param {(node: Element) => boolean} own
+ * @param {{seen: Set<number>, measured: Set<number>}} into every interaction, and the page's own
+ */
+export function countInteractions(events, own, into) {
+  events.forEach((entry) => {
+    if (!entry.interactionId) return
+
+    into.seen.add(entry.interactionId)
+
+    if (!isOwn(entry.target, own)) into.measured.add(entry.interactionId)
+  })
+}
+
+/**
+ * The entries a long-lived page needs to keep, and no more, so the lists stop growing.
+ *
+ * Nothing the panel shows changes, provided the interactions were counted first with
+ * countInteractions and the windows numbered with the same map:
+ *
+ * - LCP reads the last candidate, so only that is kept.
+ * - INP reads the slowest interactions, as far down as the 98th percentile. The slowest
+ *   entry of each is kept, for at least KEPT_INTERACTIONS interactions and as many as the
+ *   percentile reaches. A plain cut-off would keep the first ones rather than the slow ones.
+ * - CLS reads the worst session window, and the latest can still grow into a worse one. The
+ *   worst is kept with the latest windows after it, up to KEPT_SHIFT_WINDOWS. Shifts CLS
+ *   does not count are never shown, so they are dropped too.
+ *
+ * @param {Record<string, Array<object>>} entries by entry type
+ * @param {(node: Element) => boolean} own
+ * @param {{interactionCount: number, measured: number}} totals
+ * @returns {Record<string, Array<object>>} new lists; the ones not trimmed are the same arrays
+ */
+export function trimEntries(entries, own, { interactionCount = 0, measured = 0 } = {}) {
+  const trimmed = { ...entries }
+  const lcp = entries['largest-contentful-paint']
+
+  if (lcp && lcp.length > 1) trimmed['largest-contentful-paint'] = lcp.slice(-1)
+
+  if (entries.event) {
+    const reach = Math.floor(Math.max(interactionCount || 0, measured) / 50) + 1
+
+    trimmed.event = slowestInteractions(entries.event, own, Math.max(KEPT_INTERACTIONS, reach))
+  }
+
+  if (entries['layout-shift']) {
+    trimmed['layout-shift'] = worstAndLatestWindows(entries['layout-shift'], own)
+  }
+
+  return trimmed
+}
+
+/**
+ * @param {Array<object>} events
+ * @param {(node: Element) => boolean} own
+ * @param {number} keep
+ * @returns {Array<object>} the slowest entry of each of the slowest interactions, in order
+ */
+function slowestInteractions(events, own, keep) {
+  /** @type {Map<number, object>} */
+  const longest = new Map()
+
+  events.forEach((entry) => {
+    if (!entry.interactionId || isOwn(entry.target, own)) return
+
+    const known = longest.get(entry.interactionId)
+
+    if (!known || entry.duration > known.duration) longest.set(entry.interactionId, entry)
+  })
+
+  const kept = new Set(Array.from(longest.values())
+    .sort((a, b) => b.duration - a.duration)
+    .slice(0, keep))
+
+  return events.filter((entry) => kept.has(entry))
+}
+
+/**
+ * @param {Array<object>} shifts
+ * @param {(node: Element) => boolean} own
+ * @returns {Array<object>}
+ */
+function worstAndLatestWindows(shifts, own) {
+  const windows = sessionWindows(shifts, own)
+  const sums = windows.map(windowSum)
+  const worst = sums.indexOf(Math.max(...sums))
+
+  // Dropping the windows between the two cannot join them: they were already separate, and
+  // removing what lay between only widens the gap.
+  return windows
+    .filter((window, index) => index === worst || index >= windows.length - (KEPT_SHIFT_WINDOWS - 1))
+    .flat()
 }

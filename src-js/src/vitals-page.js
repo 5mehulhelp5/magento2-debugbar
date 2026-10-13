@@ -5,11 +5,22 @@
  * PerformanceObserver on each entry type, with `buffered: true` so the entries from before
  * the bar loaded are delivered too, and keeps the elements the model points at so a row
  * can outline one. The outline puts the inline style back exactly as it was found.
+ *
+ * Every read trims the lists to what the vitals need, so a page left open all day does not
+ * hold every entry it ever produced, each with the element it was about. What the trim
+ * would otherwise lose is kept beside the lists: the interactions counted, and each layout
+ * shift window's number.
  */
-import { ENTRY_TYPES, emptyVitals, inspectVitals } from './vitals.js'
+import { ENTRY_TYPES, countInteractions, emptyVitals, inspectVitals, trimEntries } from './vitals.js'
 
 /** @type {Record<string, Array<PerformanceEntry>>} */
 const entries = {}
+
+/** Interaction ids, every one and the page's own, as countInteractions fills them. */
+const interactions = { seen: new Set(), measured: new Set() }
+
+/** @type {WeakMap<object, number>} */
+const windowNumbers = new WeakMap()
 
 /** @type {Array<Element>} */
 let found = []
@@ -78,6 +89,11 @@ export function readVitals(host) {
     interactionCount = 0
   }
 
+  // The bar lives in a shadow root, so its nodes reach the page's entries as its host.
+  const own = (node) => Boolean(host) && (node === host || (typeof host.contains === 'function' && host.contains(node)))
+
+  countInteractions(entries.event || [], own, interactions)
+
   const { model, elements } = inspectVitals({
     entries,
     supported: supportedTypes(),
@@ -85,11 +101,19 @@ export function readVitals(host) {
     // Seeded with the last read's elements, so a row being hovered while an entry arrives
     // still outlines, and later un-outlines, the element it did before.
     known: found,
-    // The bar lives in a shadow root, so its nodes reach the page's entries as its host.
-    own: (node) => Boolean(host) && (node === host || (typeof host.contains === 'function' && host.contains(node))),
+    own,
+    interactions: { seen: interactions.seen.size, measured: interactions.measured.size },
+    windowNumbers,
   })
 
   found = elements
+
+  // After the read, so what it showed came from every entry there was. The observers look
+  // their list up by type on each callback, so replacing it here is safe.
+  Object.assign(entries, trimEntries(entries, own, {
+    interactionCount,
+    measured: interactions.measured.size,
+  }))
 
   return model
 }
