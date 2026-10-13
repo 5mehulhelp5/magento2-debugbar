@@ -110,6 +110,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and saving the page without touching it keeps the stored key. It is still stored as an
   ordinary setting.
 
+- The Full Page Cache section names every cookie a response sets in its headers, not only
+  the first ([#34](https://github.com/Siteation/magento2-debugbar/issues/34)).
+
 - In the admin, the bar's sections, History and Compare said "Could not load profile details:
   The response was not JSON". Its requests went to admin addresses that had no controller,
   so the admin answered with its 404 page. Those addresses now answer.
@@ -119,6 +122,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Each distinct SQL statement is normalised once per request instead of five times
   ([#32](https://github.com/Siteation/magento2-debugbar/issues/32)). On a page of 300
   queries the analysis takes about 2.4 ms instead of 4.6 ms.
+
+- PHPStan runs at level 8 instead of 6, clean on both PHPStan 1.12 and 2.x
+  ([#34](https://github.com/Siteation/magento2-debugbar/issues/34)).
 
 - A store that already chose which sections to show keeps that list,
   so the SEO, Data layer and Web Vitals sections stay off there until they are added under

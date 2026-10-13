@@ -119,7 +119,7 @@ class ProfileComparer
         $now = $this->seoSummary($subject);
         $missing = array_keys(array_filter(['before' => $was, 'now' => $now], 'is_null'));
 
-        if ($missing !== []) {
+        if ($was === null || $now === null) {
             return [
                 'available' => false,
                 // Both requests can be pages with no SEO record: an API call, a redirect,
@@ -382,7 +382,7 @@ class ProfileComparer
         $items = $profile['sections']['queries']['payload']['items'] ?? [];
         $keyed = [];
 
-        foreach ($this->queries->analyze(is_array($items) ? $items : [])['groups'] as $group) {
+        foreach ($this->queries->analyze(is_array($items) ? array_values($items) : [])['groups'] as $group) {
             $keyed[(string) $group['fingerprint']] = $group;
         }
 

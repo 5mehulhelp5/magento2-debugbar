@@ -23,7 +23,7 @@ class ProfileSummary
     public function for(array $profile): array
     {
         $request = $profile['sections']['request']['summary'] ?? [];
-        $findings = is_array($profile['findings'] ?? null) ? $profile['findings'] : [];
+        $findings = is_array($profile['findings'] ?? null) ? array_values($profile['findings']) : [];
 
         return [
             'profile_id' => $profile['id'] ?? null,
