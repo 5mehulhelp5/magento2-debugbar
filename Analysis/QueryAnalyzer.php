@@ -26,6 +26,20 @@ class QueryAnalyzer
     private const MIN_N_PLUS_ONE_EXECUTIONS = 3;
 
     /**
+     * Distinct statements remembered at once. A page has a few hundred; the bound is for the
+     * long running process, a consumer or cron, that keeps one analyzer for hours.
+     */
+    private const MEMO_LIMIT = 2000;
+
+    /**
+     * Normalised SQL by raw SQL. One request reads the same statement here five times over:
+     * the query section's groups, its repeat counts and the repeated query rule.
+     *
+     * @var array<string, string>
+     */
+    private array $normalized = [];
+
+    /**
      * @param list<array<string, mixed>> $queries
      * @return array{groups: list<array<string, mixed>>, total_ms: float}
      */
@@ -111,13 +125,26 @@ class QueryAnalyzer
         return substr(hash('sha256', $this->normalize($sql)), 0, 16);
     }
 
+    private function normalize(string $sql): string
+    {
+        if (isset($this->normalized[$sql])) {
+            return $this->normalized[$sql];
+        }
+
+        if (count($this->normalized) >= self::MEMO_LIMIT) {
+            $this->normalized = [];
+        }
+
+        return $this->normalized[$sql] = $this->normalizeUncached($sql);
+    }
+
     /**
      * Backticked identifiers and quoted strings match first and are returned untouched, so
      * only what is left over, a bare number, can be replaced. The lookarounds keep the
      * digits inside `attribute_2` and `t1` out of it: a number is only a value when nothing
      * word-like is against it.
      */
-    private function normalize(string $sql): string
+    private function normalizeUncached(string $sql): string
     {
         $sql = trim((string) preg_replace('/\s+/', ' ', $sql));
 

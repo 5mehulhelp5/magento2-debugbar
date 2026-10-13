@@ -169,4 +169,18 @@ class QueryAnalyzerTest extends TestCase
         $this->assertCount(2, $result['groups']);
     }
 
+    #[Test]
+    public function aFingerprintIsTheSameBeforeAndAfterTheMemoryOfStatementsIsCleared(): void
+    {
+        $sql = 'SELECT * FROM `catalog_product_entity` WHERE `entity_id` = 42';
+        $before = $this->analyzer->fingerprint($sql);
+
+        // More distinct statements than are remembered at once, so the memo starts over.
+        for ($table = 0; $table < 2500; $table++) {
+            $this->analyzer->fingerprint('SELECT * FROM `t' . $table . '`');
+        }
+
+        $this->assertSame($before, $this->analyzer->fingerprint($sql));
+        $this->assertSame($before, (new QueryAnalyzer())->fingerprint($sql));
+    }
 }
