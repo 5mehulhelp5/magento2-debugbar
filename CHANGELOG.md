@@ -105,6 +105,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#33](https://github.com/Siteation/magento2-debugbar/issues/33)). It was redacted in
   full and then thrown away, so a page with thousands of queries paid for each one.
 
+- The admin no longer shows the Developer Access Key
+  ([#36](https://github.com/Siteation/magento2-debugbar/issues/36)). The field is masked,
+  and saving the page without touching it keeps the stored key. It is still stored as an
+  ordinary setting.
+
 - In the admin, the bar's sections, History and Compare said "Could not load profile details:
   The response was not JSON". Its requests went to admin addresses that had no controller,
   so the admin answered with its 404 page. Those addresses now answer.

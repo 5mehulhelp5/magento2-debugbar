@@ -53,6 +53,28 @@ class AccessKeyTest extends TestCase
         $this->assertSame($key, $field->getValue());
     }
 
+    #[Test]
+    public function theMaskTheFieldShowsLeavesTheStoredKeyAlone(): void
+    {
+        // The field is obscure, so a page saved without touching it posts the mask back. Saved
+        // as is, it would replace the key with asterisks, or fail the length check.
+        $field = $this->field('******');
+
+        $field->beforeSave();
+
+        $this->assertFalse($field->isSaveAllowed());
+    }
+
+    #[Test]
+    public function aNewKeyIsStillSaved(): void
+    {
+        $field = $this->field(str_repeat('a', Config::MIN_ACCESS_KEY_LENGTH));
+
+        $field->beforeSave();
+
+        $this->assertTrue($field->isSaveAllowed());
+    }
+
     /**
      * Stubbed down to what AbstractModel::beforeSave() actually touches, which is the event
      * manager and nothing else.
