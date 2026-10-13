@@ -876,3 +876,37 @@ test.describe('the Web Vitals section', () => {
     expect(await ourAlpineErrors(page)).toEqual([])
   })
 })
+
+test.describe('the Page cache section', () => {
+  test('names the block that made the cart uncacheable, and the file it came from', async ({ page }) => {
+    await openBar(page)
+    await state(page, (data) => { data.section = 'pagecache' })
+
+    // The cart is uncacheable by design: core declares its main block cacheable="false".
+    await waitForState(page, (data) => data.pageCache.status === 'not_cached'
+      && data.uncacheableBlocks.length > 0)
+    expect(await state(page, (data) => data.pageCache.reasons.map((reason) => reason.code)))
+      .toContain('layout')
+
+    const row = page.locator('.ndb-sheet table tbody tr').first()
+    await expect(row.locator('td').nth(1)).not.toHaveText('unknown')
+    await expect(row.locator('td').nth(2)).toHaveText(/\/layout\/[a-z_]+\.xml$/)
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+
+  test('says a cached page was served from the cache rather than listing no reasons', async ({ page }) => {
+    // Twice, so the second is a hit however the cache was left by whatever ran before.
+    await page.goto('/')
+    await page.goto('/')
+    await page.waitForFunction(
+      () => document.querySelector('siteation-debugbar')?.shadowRoot?.querySelector('.ndb')
+        ?._x_dataStack !== undefined
+    )
+    await state(page, (data) => { data.openInspector(); data.maximised = true; data.section = 'pagecache' })
+
+    await waitForState(page, (data) => data.pageCache.status === 'hit')
+    expect(await state(page, (data) => data.looksLikeFullPageCacheHit)).toBe(true)
+    await expect(page.locator('.ndb-sheet')).toContainText('Served from the full page cache')
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+})

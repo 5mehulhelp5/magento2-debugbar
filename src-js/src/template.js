@@ -553,6 +553,72 @@ export const template = `
       </div>
       </template>
 
+      <template data-ndb-if="isSection('pagecache')">
+      <div>
+        ${facts([
+          { label: 'Verdict', value: 'pageCacheVerdict', tone: 'pageCacheTone' },
+          {
+            label: 'Full page cache',
+            value: "(pageCache.type === 'varnish' ? 'Varnish' : 'Built-in') + (pageCache.enabled ? ', on' : ', off') + (pageCache.ttl ? ', ' + pageCache.ttl + ' s' : '')",
+          },
+          { label: 'Request', value: "(pageCache.method || 'GET') + (pageCache.is_secure ? ' over HTTPS' : ' over HTTP')" },
+          { label: 'Action', value: "pageCache.action || 'none'", mono: true },
+        ])}
+
+        <p class="ndb-note" data-ndb-show="pageCache.status === 'hit'">
+          The cache answered before Magento routed the request, so no layout, block or query
+          ran. Reasons only exist for a page that was generated: reload with the cache cleaned
+          to see them.
+        </p>
+
+        <p class="ndb-note" data-ndb-show="pageCache.status === 'cacheable'">
+          Varnish decides out of sight of PHP. This says the response was offered as
+          cacheable, not that Varnish kept it.
+        </p>
+
+        <template data-ndb-if="(pageCache.reasons || []).length">
+        <div>
+          <div class="ndb-subhead"><div><h3>Why it was not cached</h3></div></div>
+          <ol class="ndb-list ndb-reasons">
+            <template data-ndb-for="reason in pageCache.reasons" data-ndb-bind:key="reason.code">
+              <li data-ndb-bind:data-code="reason.code" data-ndb-text="reason.text"></li>
+            </template>
+          </ol>
+        </div>
+        </template>
+
+        <template data-ndb-if="uncacheableBlocks.length">
+        <table class="ndb-table">
+          <thead>
+            <tr><th>Block marked cacheable="false"</th><th>Handle</th><th>Layout file</th></tr>
+          </thead>
+          <tbody>
+            <template data-ndb-for="(block, index) in uncacheableBlocks" data-ndb-bind:key="index">
+              <tr>
+                <td class="ndb-mono" data-ndb-text="block.name"></td>
+                <td class="ndb-mono" data-ndb-text="block.handle || 'unknown'"></td>
+                <td class="ndb-mono ndb-dim" data-ndb-text="block.file || 'not found in a layout file'"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        </template>
+
+        <div class="ndb-subhead"><div><h3>Response headers</h3></div></div>
+        ${facts([
+          { label: 'Cache-Control', value: "pageCache.cache_control || 'not sent'", mono: true },
+          { label: 'Pragma', value: "pageCache.pragma || 'not sent'", mono: true },
+          { label: 'X-Magento-Cache-Debug', value: "pageCache.cache_debug || 'not sent (developer mode only)'", mono: true },
+          {
+            label: 'Set-Cookie',
+            value: "(pageCache.set_cookies || []).join(', ') || 'none'",
+            mono: true,
+            tone: "(pageCache.set_cookies || []).length && pageCache.page_type ? 'warn' : ''",
+          },
+        ])}
+      </div>
+      </template>
+
       <template data-ndb-if="isSection('blocks')">
       <div>
         <div class="ndb-controls">

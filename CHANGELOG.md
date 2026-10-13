@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **Page cache** section
+  ([#8](https://github.com/Siteation/magento2-debugbar/issues/8)):
+  whether the page was served from the full page cache, stored for the next request, or
+  not cached, and every reason in the order Magento checks them. Each block marked
+  `cacheable="false"` is listed with the layout handle and file that declared it, and the
+  headers are shown as the application offered them to the cache. A CMS page, category or
+  product page that was not cached is a finding. The overview no longer guesses at a cache
+  hit from an empty profile when this section can say.
+
 - An **SEO** section, read from the live page, with five views
   ([#4](https://github.com/Siteation/magento2-debugbar/issues/4)):
   Overview (title, meta description, canonical, robots, hreflang, language, viewport,

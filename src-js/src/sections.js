@@ -76,6 +76,11 @@ export const SECTIONS = [
     lead: 'Reads and writes grouped by key prefix, with the hit rate for each.',
   },
   {
+    id: 'pagecache',
+    label: 'Page cache',
+    lead: 'Whether this page went into the full page cache, and if not, every reason it did not.',
+  },
+  {
     id: 'plugins',
     label: 'Plugins',
     lead: 'Which interceptors were built for this request, and on what.',
@@ -140,6 +145,7 @@ export function countFor(id, state) {
     case 'observers': return state.observers.unique_count || null
     case 'events': return state.events.unique_count || null
     case 'cache': return state.cache.count || null
+    case 'pagecache': return state.pageCache.reason_count || null
     case 'plugins': return state.interception.plugin_count || null
     case 'alpine': return state.alpineComponents.length || null
     case 'magewire': return state.magewireComponents.length || null

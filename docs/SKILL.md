@@ -24,7 +24,7 @@ Every profile is already redacted and bounded. The tools are read only and chang
    request and it is small.
 2. Then the smallest section that tests that conclusion, with `get_debug_profile_section`.
    It serves one of `request`, `queries`, `events`, `observers`, `blocks`, `cache`,
-   `interception` or `timeline`, a page at a time: pass `limit`, and feed the `next_cursor` it
+   `pagecache`, `interception` or `timeline`, a page at a time: pass `limit`, and feed the `next_cursor` it
    returns back as `cursor` to read the next page. `timeline` is the whole request in order, which is the
    fastest way to see where the time went when no single section stands out.
 3. `inspect_debug_queries` only when the evidence points at the database. Start with
@@ -58,8 +58,12 @@ that a fix helped rather than that it looks like it should have.
 * **Compare query time against total request time before blaming the database.** If
   queries are a small share, look at `blocks`, `observers` and `cache` instead. Magento
   pages are far more often slow in block rendering than in SQL.
-* **A profile with no queries and no events is a full page cache hit**, not a fast page.
-  The application never ran. Say so rather than reporting it as a good result.
+* **A full page cache hit is not a fast page.** The application never ran. The `pagecache`
+  section says so in `status: hit`; on a profile without that section, no queries and no
+  events means the same. Say so rather than reporting it as a good result.
+* **Ask `pagecache` why a page was not cached.** Its `reasons` are Magento's own, in the
+  order Magento checks them, and its items name each `cacheable="false"` block with the
+  layout handle and file that declared it.
 * **`own_ms` on a block excludes its children.** Use it to find the block worth fixing;
   `total_ms` on a container is just the page.
 * **SEO findings are not in a profile.** The bar's SEO section reads the live page in the

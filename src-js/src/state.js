@@ -664,6 +664,39 @@ export function debugBar() {
     },
 
     /** @returns {object} */
+    get pageCache() {
+      return this.summaryOf('pagecache')
+    },
+
+    /** @returns {Array<object>} the blocks marked cacheable="false" that reached the page */
+    get uncacheableBlocks() {
+      return this.itemsOf('pagecache')
+    },
+
+    /**
+     * The panel's one line answer, worded for someone who asked "is this cached?".
+     *
+     * @returns {string}
+     */
+    get pageCacheVerdict() {
+      switch (this.pageCache.status) {
+        case 'hit': return 'Served from the full page cache'
+        case 'stored': return 'Not in the cache yet, stored for the next request'
+        case 'cacheable': return 'Offered to Varnish as cacheable'
+        case 'not_cached': return 'Not cached'
+        case 'not_applicable': return 'Not a storefront page, so the page cache does not apply'
+        default: return 'Unknown'
+      }
+    },
+
+    /** @returns {string} */
+    get pageCacheTone() {
+      if (this.pageCache.status === 'not_cached') return 'warn'
+
+      return this.pageCache.status === 'not_applicable' ? 'dim' : 'ok'
+    },
+
+    /** @returns {object} */
     get blocks() {
       return this.summaryOf('blocks')
     },
@@ -889,6 +922,9 @@ export function debugBar() {
      * @returns {boolean}
      */
     get looksLikeFullPageCacheHit() {
+      // The page cache section knows rather than guesses, when it was collected.
+      if (this.pageCache.status) return this.pageCache.status === 'hit'
+
       return Number(this.queries.count || 0) === 0
         && Number(this.events.count || 0) === 0
     },
