@@ -3332,8 +3332,7 @@ const ic = ["findings", "overview"], rn = [
   {
     id: "seo",
     label: "SEO",
-    lead: "This page as a search engine or a link preview reads it: tags, headings, images, links and structured data.",
-    graded: !1
+    lead: "This page as a search engine or a link preview reads it: tags, headings, images, links and structured data."
   },
   {
     id: "datalayer",
@@ -8107,6 +8106,18 @@ function Dh() {
     get sectionFindings() {
       return this.section === "findings" ? [] : this.findings.filter((e) => e.section === this.section);
     },
+    /**
+     * Whether to say that nothing in this section matched a rule.
+     *
+     * The SEO rules read the server's HTML, and the panel below reads the live page with
+     * checks of its own. "No clear problem found" above a list of the panel's own warnings
+     * would contradict it, so the line is only drawn when both agree.
+     *
+     * @returns {boolean}
+     */
+    get sectionClear() {
+      return this.currentSection.graded === !1 || this.section === "findings" || this.sectionFindings.length > 0 ? !1 : this.section !== "seo" || !this.seo.warningCount;
+    },
     /** @param {string} id */
     isFavourite(e) {
       return this.favourites.includes(e);
@@ -8367,7 +8378,7 @@ function Dh() {
      * @param {object} action
      */
     follow(e) {
-      e && (e.filter && e.section === "queries" && (this.queryFilter = e.filter, this.querySearch = ""), this.select(e.section));
+      e && (e.filter && e.section === "queries" && (this.queryFilter = e.filter, this.querySearch = ""), e.filter && e.section === "seo" && (this.seoTab = e.filter), this.select(e.section));
     },
     /**
      * The one section whose data is not in the profile, so it is read again rather than
@@ -9061,9 +9072,7 @@ const jh = `
         </template>
       </div>
 
-      <div class="ndb-callout is-clear"
-           data-ndb-show="currentSection.graded !== false && section !== 'findings'
-                          && sectionFindings.length === 0">
+      <div class="ndb-callout is-clear" data-ndb-show="sectionClear">
         <p class="ndb-callout-title">No clear problem found</p>
         <p>Nothing in this section matched a rule.</p>
       </div>

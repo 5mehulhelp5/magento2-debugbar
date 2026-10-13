@@ -82,9 +82,7 @@ export const template = `
         </template>
       </div>
 
-      <div class="ndb-callout is-clear"
-           data-ndb-show="currentSection.graded !== false && section !== 'findings'
-                          && sectionFindings.length === 0">
+      <div class="ndb-callout is-clear" data-ndb-show="sectionClear">
         <p class="ndb-callout-title">No clear problem found</p>
         <p>Nothing in this section matched a rule.</p>
       </div>

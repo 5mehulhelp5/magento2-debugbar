@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The **SEO server half**, first part
+  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10)):
+  a profile of a storefront page now keeps what the HTML the server sent told search
+  engines: title, description, canonical links, robots meta tag and header, language and
+  hreflang alternates, headings, Open Graph and X tags, and structured data types. Five SEO
+  findings come from it: no canonical on a product or category page, more than one
+  canonical, noindex on a page meant to be found, more than one H1, and no H1. A new MCP tool,
+  `get_debug_seo`, returns the facts and the findings together, and the markdown report has
+  an SEO table. A finding opens the SEO view that shows the same thing on the live page.
+
 - A **Layout** section
   ([#9](https://github.com/Siteation/magento2-debugbar/issues/9)):
   the layout handles the request loaded, in the order Magento merged them, with the XML

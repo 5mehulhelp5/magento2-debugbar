@@ -9,11 +9,11 @@ For working on Siteation_DebugBar itself. If you want to use it, read the
 | --- | --- |
 | `Api/` | `CollectorInterface`, `RuleInterface`, `McpToolInterface` |
 | `Plugin/` | The entry hook and the six collection hooks |
-| `Collector/` | Nine collectors and the abstract they share |
+| `Collector/` | Ten collectors and the abstract they share |
 | `Analysis/` | Findings, rules, the query analyzer, the timeline, the comparer |
 | `Model/` | Config, the gate, the access key, the store, the redactor, the layout file lookup |
 | `Presentation/` | Bar injection, the markdown report, the MCP presenter |
-| `Mcp/` | JSON-RPC server and five tools |
+| `Mcp/` | JSON-RPC server and six tools |
 | `Controller/Profile/` | `view`, `history`, `compare` |
 | `Console/` | `siteation:debugbar:mcp`, `siteation:debugbar:report` |
 | `src-js/` | Alpine sources for the bar; build output is committed |
@@ -82,8 +82,8 @@ from, what to check next, and the section and filter holding its evidence. Point
 at a filter that actually narrows: mapping `repeated` to `all` is no filter at all, which is
 a mistake this codebase has already made once.
 
-Eight rules ship, producing ten kinds of finding. `RequestErrorRule` and `RepeatedQueryRule`
-emit two each.
+Twelve rules ship, producing sixteen kinds of finding. `RequestErrorRule`,
+`RepeatedQueryRule`, `SeoCanonicalRule` and `SeoHeadingRule` emit two each.
 
 ## The profile
 
@@ -168,6 +168,13 @@ screen). `seo-page.js` is the live half: it reads the real document, keeps the e
 found out of the bar's reactive state, and draws and removes the outlines. A new check goes in
 `seo.js` with a fixture in `test/seo.test.js`.
 
+`Collector\SeoCollector` is the server's half. It parses the response with `DOMDocument` in
+`finalize()`, after the page has rendered and before the bar is injected, and keeps what the
+HTML told search engines. Its checks mirror the ones in `seo.js` where both read the same tag,
+so a canonical found by one is found by the other: `rel` is a token list matched without
+case, and headings inside a `<template>` do not count. The SEO rules read only its summary,
+which is embedded in every page, so anything long goes in the payload.
+
 `schema.js` is the Schema view: it reads JSON-LD and microdata into one entity shape and
 checks them against `RICH_RESULT_RULES`, one table of required and recommended properties per
 type with the Google page each came from. When Google changes a rule, change that table and
@@ -196,7 +203,7 @@ ACL resource and redirects through the backend URL model, which adds the key.
 ## MCP
 
 `bin/magento siteation:debugbar:mcp`, hand rolled JSON-RPC 2.0 over newline delimited stdio,
-five read only tools. It starts in about 0.2 seconds because it only reads files.
+six read only tools. It starts in about 0.2 seconds because it only reads files.
 
 Add a tool by implementing `Api\McpToolInterface` and registering it in the tools array in
 `etc/di.xml`. Shaping belongs in `Presentation\McpProfilePresenter`, which bounds every
@@ -210,10 +217,10 @@ for out of the response rather than pushing it over.
 ```
 vendor/bin/phpcs  --standard=<pkg>/phpcs.xml.dist <pkg>
 vendor/bin/phpstan analyse -c <pkg>/phpstan.neon.dist
-vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 245 tests
-<pkg>/dev/smoke https://your-store.test admin                  # 30 assertions over HTTP
+vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 268 tests
+<pkg>/dev/smoke https://your-store.test admin                  # 31 assertions over HTTP
 cd <pkg>/src-js && npm test                                    # 159, no store needed
-cd <pkg>/src-js && npm run test:browser                        # 26, needs the store up
+cd <pkg>/src-js && npm run test:browser                        # 27, needs the store up
 ```
 
 **The supported PHP range is checked separately**, because `phpstan.neon.dist` has to keep

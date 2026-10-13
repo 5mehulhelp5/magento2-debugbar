@@ -37,7 +37,7 @@ class McpProfilePresenter
     /** @var list<string> */
     private const SECTIONS = [
         'request', 'queries', 'events', 'observers', 'blocks', 'cache', 'pagecache', 'layout', 'interception',
-        'timeline',
+        'seo', 'timeline',
     ];
 
     public function __construct(
@@ -185,6 +185,65 @@ class McpProfilePresenter
         }
 
         return $this->envelope($this->comparer->compare($baseline, $subject));
+    }
+
+    /**
+     * The SEO facts the server sent, with the findings about them, in one answer.
+     *
+     * Section and findings together because the question an agent brings is "is this page
+     * right for search", and that takes both. The headings are the only list that grows with
+     * the page, so they are the ones bounded by the caller and trimmed by the byte budget.
+     *
+     * @return array<string, mixed>
+     */
+    public function seo(string $profileId, int $headings): array
+    {
+        $profile = $this->store->get($profileId);
+
+        if ($profile === null) {
+            return $this->notFound($profileId);
+        }
+
+        $section = $profile['sections']['seo'] ?? null;
+
+        if (!is_array($section)) {
+            return $this->envelope([
+                'error' => 'This profile has no SEO section. It is switched off, or the profile '
+                    . 'is older than the section.',
+            ], 'error');
+        }
+
+        $summary = (array) ($section['summary'] ?? []);
+        $payload = (array) ($section['payload'] ?? []);
+        $items = is_array($payload['items'] ?? null) ? $payload['items'] : [];
+        $findings = array_values(array_filter(
+            is_array($profile['findings'] ?? null) ? $profile['findings'] : [],
+            static fn (mixed $finding): bool => is_array($finding) && ($finding['section'] ?? '') === 'seo'
+        ));
+
+        if (isset($summary['skipped'])) {
+            return $this->envelope([
+                'profile_id' => $profileId,
+                'request' => $this->requestLine($profile),
+                'skipped' => $summary['skipped'],
+                'note' => 'This response held no storefront page to read.',
+            ]);
+        }
+
+        return $this->fit(
+            fn (array $shown): array => $this->envelope([
+                'profile_id' => $profileId,
+                'request' => $this->requestLine($profile),
+                'summary' => $summary,
+                'canonicals' => $payload['canonicals'] ?? [],
+                'hreflang' => $payload['hreflang'] ?? [],
+                'social' => $payload['social'] ?? [],
+                'headings' => $shown,
+                'headings_total' => count($items),
+                'findings' => $findings,
+            ]),
+            array_slice($items, 0, max(0, min($headings, $this->maxItems)))
+        );
     }
 
     /**

@@ -69,10 +69,12 @@ that a fix helped rather than that it looks like it should have.
   pulled a handle in, and `layout: separate` marks a layout generated beside the page's.
 * **`own_ms` on a block excludes its children.** Use it to find the block worth fixing;
   `total_ms` on a container is just the page.
-* **SEO findings are not in a profile.** The bar's SEO section reads the live page in the
-  browser, so none of its checks reach these tools. The one SEO fact a profile holds is the
-  `X-Robots-Tag` header, as `robots_header` in the `request` section, and only when the
-  response sent one. Do not report a page as free of SEO problems from a profile.
+* **Ask `get_debug_seo` what a page told search engines.** It is the HTML the server sent:
+  title, description, canonical, robots meta and header, hreflang, headings, social tags and
+  structured data types, with the `seo.*` findings. What JavaScript changed afterwards is not
+  in it, and neither are the bar's live SEO checks (image sizes, link problems, whether a
+  rich result is complete), so do not report a page as free of SEO problems from a profile.
+  A `skipped` value means the response held no storefront page to read.
 * **Data layer findings are not in a profile either.** The Data layer section reads
   `window.dataLayer` in the browser. Nothing a page pushed reaches these tools.
 * **Nor are Web Vitals.** LCP, CLS and INP are measured by the browser the page is open in.

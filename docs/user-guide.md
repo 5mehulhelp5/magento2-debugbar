@@ -109,7 +109,9 @@ Filter it by typing.
 | History | Every profile still on disk, so an earlier request is one click away |
 
 Alpine, Magewire, SEO, Data layer and Web Vitals read the live page rather than the stored
-profile, so they show what is in the browser now. Everything else is the profile.
+profile, so they show what is in the browser now. Everything else is the profile. SEO is the
+one with a half in both: the views read the live page, and the profile keeps what the server
+sent, which is what the SEO findings are about.
 
 ### SEO
 
@@ -146,8 +148,28 @@ Images and Links show only the rows with a problem until you switch **Problems o
 The page is read when it finishes loading and again whenever you open the section; **Refresh**
 reads it again on demand.
 
-The `X-Robots-Tag` header is the one thing that comes from the profile, because a script
+The `X-Robots-Tag` header is the one thing the views take from the profile, because a script
 cannot read the headers of the response that loaded it.
+
+**The server's half.** On a storefront page the profile also keeps what the HTML the server
+sent says: the title and description with their length, every canonical link, the robots
+meta tag and header, the language and its hreflang alternates, the headings in order, the
+Open Graph and X tags, and the structured data types from JSON-LD and microdata. That is what
+a crawler that does not run JavaScript reads, and it is kept with the request, so History, the
+report and the MCP tools can answer for a page that is no longer open. These findings come
+from it, at the top of the section and in Findings:
+
+- **No canonical** on a product or category page, naming the setting that adds one
+  (`catalog/seo/product_canonical_tag` or `catalog/seo/category_canonical_tag`, both off in a
+  new Magento). A CMS page is left alone, since Magento has no such setting for one.
+- **More than one canonical** on any page.
+- **noindex** on a CMS page, category or product answered with a 200, saying whether the
+  robots meta tag or the `X-Robots-Tag` header asked for it. On a staging site that is right.
+- **More than one H1**, and, as a note, **no H1** on a CMS page, category or product.
+
+Headings inside a `<template>` are left out, as the browser leaves them out of the page until
+a script stamps them. A response that is not a storefront page, or is over 3 MB, is not read,
+and says which.
 
 **Edit this page in the admin** goes through a small admin route that checks your role and
 then redirects to the edit screen, with the secret key added when the store uses one. You are
@@ -295,6 +317,12 @@ and filter holding its evidence.
 | `block.slow` | A block's own render time stands out |
 | `observer.slow` | An observer's time stands out |
 | `cache.high_miss_rate` | A key prefix is missing far more often than it hits |
+| `pagecache.not_cached` | A CMS page, category or product was not put in the full page cache |
+| `seo.canonical_missing` | A product or category page has no canonical link in the server's HTML |
+| `seo.canonical_multiple` | The server's HTML has more than one canonical link |
+| `seo.noindex` | A CMS page, category or product asks not to be indexed |
+| `seo.h1_multiple` | The server's HTML has more than one H1 |
+| `seo.h1_missing` | A CMS page, category or product has no H1 in the server's HTML |
 | `collector.truncated` | A collector hit its cap, so its list is shorter than its count |
 
 A finding is a lead, not a verdict. `query.n_plus_one` is deliberately conservative and
@@ -349,8 +377,9 @@ Or, for anything that speaks MCP over stdio:
 }
 ```
 
-Five read only tools: `list_debug_profiles`, `get_debug_findings`,
-`get_debug_profile_section`, `inspect_debug_queries` and `compare_debug_profiles`. The server
+Six read only tools: `list_debug_profiles`, `get_debug_findings`,
+`get_debug_profile_section`, `inspect_debug_queries`, `compare_debug_profiles` and
+`get_debug_seo`. The server
 reads files and never opens a database connection, so it starts in about 0.2 seconds.
 
 Responses are bounded by item count and byte budget. On an 817 kB profile from a category
