@@ -24,7 +24,7 @@ Every profile is already redacted and bounded. The tools are read only and chang
    request and it is small.
 2. Then the smallest section that tests that conclusion, with `get_debug_profile_section`.
    It serves one of `request`, `queries`, `events`, `observers`, `blocks`, `cache`,
-   `pagecache`, `interception` or `timeline`, a page at a time: pass `limit`, and feed the `next_cursor` it
+   `pagecache`, `layout`, `interception` or `timeline`, a page at a time: pass `limit`, and feed the `next_cursor` it
    returns back as `cursor` to read the next page. `timeline` is the whole request in order, which is the
    fastest way to see where the time went when no single section stands out.
 3. `inspect_debug_queries` only when the evidence points at the database. Start with
@@ -64,6 +64,9 @@ that a fix helped rather than that it looks like it should have.
 * **Ask `pagecache` why a page was not cached.** Its `reasons` are Magento's own, in the
   order Magento checks them, and its items name each `cacheable="false"` block with the
   layout handle and file that declared it.
+* **Ask `layout` which XML a page loaded.** Its items are the handles in merge order, each
+  with its files and the module or theme behind each file. `via` names the handle whose file
+  pulled a handle in, and `layout: separate` marks a layout generated beside the page's.
 * **`own_ms` on a block excludes its children.** Use it to find the block worth fixing;
   `total_ms` on a container is just the page.
 * **SEO findings are not in a profile.** The bar's SEO section reads the live page in the

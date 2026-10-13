@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **Layout** section
+  ([#9](https://github.com/Siteation/magento2-debugbar/issues/9)):
+  the layout handles the request loaded, in the order Magento merged them, with the XML
+  files behind each one and the module or theme each file comes from. Handles pulled in by
+  an `<update handle>` are listed after the handle that pulled them in. A separate layout,
+  such as the one prices render through, is listed after the page's own and marked. Each
+  handle links to the Blocks section, filtered to the blocks that handle put on the page.
+  The Page cache section now reads layout files through the same lookup.
+
 - A **Page cache** section
   ([#8](https://github.com/Siteation/magento2-debugbar/issues/8)):
   whether the page was served from the full page cache, stored for the next request, or

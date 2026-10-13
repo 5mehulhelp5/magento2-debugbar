@@ -26,6 +26,7 @@ function state(overrides = {}) {
     events: {},
     cache: {},
     pageCache: {},
+    layout: {},
     interception: {},
     alpineComponents: [],
     magewireComponents: [],
@@ -82,6 +83,8 @@ test('counts come from the summary each section actually has', () => {
   assert.equal(countFor('vitals', state({ vitals: { poorCount: 2 } })), 2)
   assert.equal(countFor('pagecache', state({ pageCache: { reason_count: 2 } })), 2)
   assert.equal(countFor('pagecache', state({ pageCache: { status: 'hit', reason_count: 0 } })), null)
+  assert.equal(countFor('layout', state({ layout: { handle_count: 14 } })), 14)
+  assert.equal(countFor('layout', state({ layout: { handle_count: 0 } })), null)
   assert.equal(countFor('overview', state({ queries: { count: 12 } })), null)
 })
 

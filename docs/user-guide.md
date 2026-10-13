@@ -99,6 +99,7 @@ Filter it by typing.
 | Events | Every dispatched event, including ones nothing listens to |
 | Cache | Reads and writes grouped by key prefix, with hit rates |
 | Page cache | Whether this page went into the full page cache, and if not, why not |
+| Layout | The layout handles this request loaded, and the XML files behind each one |
 | Plugins | Which interceptors were built for this request, and on what |
 | Alpine | The components on the page right now, and their live state |
 | Magewire | The components on the page, their state, and each update's cost |
@@ -216,6 +217,31 @@ cached sets one. `X-Magento-Cache-Debug` is only sent in developer mode.
 
 A CMS page, category or product page that was not cached is a finding: a warning, or a note
 when the only reason is that the cache is switched off.
+
+### Layout
+
+Answers "which XML put this on the page?". It lists every layout handle the request loaded,
+in the order Magento merged them, and under each handle the files that define it, with the
+module that ships each file or the theme that overrides it. Filter by a handle name or by
+any part of a file path.
+
+A handle the page did not ask for directly, because a layout file pulled it in with
+`<update handle="..."/>`, is listed after that handle and marked **via** it. A request can
+also generate a layout of its own beside the page's, for prices or an email. Those handles
+come after the page's and are marked **separate layout**.
+
+The file paths are the files the merge read. A theme or module that rewrites layout files
+before the merge shows its rewritten copy.
+
+Each handle with blocks of its own has a button for them. It opens the Blocks section,
+filtered to the blocks that handle put on the page; the filter shows above the list, and
+clicking it clears it. A block counts for the first handle, in merge order, whose files
+declare it, which is the same rule the Page cache section uses to name the handle of an
+uncacheable block. A block that a later file removed is not counted.
+
+The lookup runs after the page has rendered, so it does not distort the block timings,
+but it does read every file of every handle and adds to the request's total time. Turn the
+section off under **Sections** if that matters on a page you are measuring.
 
 ### Web Vitals
 

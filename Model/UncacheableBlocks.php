@@ -4,35 +4,26 @@ declare(strict_types=1);
 
 namespace Siteation\DebugBar\Model;
 
-use Magento\Framework\Filesystem\Driver\File as FileDriver;
-use Magento\Framework\View\DesignInterface;
-use Magento\Framework\View\File\CollectorInterface;
 use Magento\Framework\View\Layout;
 use SimpleXMLElement;
-use Throwable;
 
 /**
  * The blocks that made a layout uncacheable, and where each one was declared.
  *
  * Layout::isCacheable() answers with one boolean after merging every handle into one
  * document, and the merge keeps no record of which file a node came from. A developer told
- * "this page is not cached" needs the block and the file, so this asks the same file
- * collector the merge used for the files of each loaded handle, and looks for the block in
- * each. Handles are searched in load order, so a block declared in default.xml is reported
- * there rather than in a handle that only references it.
+ * "this page is not cached" needs the block and the file, so this reads the files of each
+ * loaded handle through LayoutFiles and looks for the block in each. Handles are searched
+ * in load order, so a block declared in default.xml is reported there rather than in a
+ * handle that only references it.
  *
  * Runs only when the bar is collecting and only for blocks that are already known to be
  * uncacheable, which on a healthy page is none.
  */
 class UncacheableBlocks
 {
-    /** @var array<string, SimpleXMLElement|false> */
-    private array $parsed = [];
-
     public function __construct(
-        private readonly CollectorInterface $fileSource,
-        private readonly DesignInterface $design,
-        private readonly FileDriver $files,
+        private readonly LayoutFiles $layoutFiles,
         private readonly CallSiteResolver $callSites
     ) {
     }
@@ -80,8 +71,9 @@ class UncacheableBlocks
     private function source(string $name, array $handles): array
     {
         foreach ($handles as $handle) {
-            foreach ($this->filesFor($handle) as $path) {
-                $xml = $this->parse($path);
+            foreach ($this->layoutFiles->forHandle($handle) as $file) {
+                $path = $file['path'];
+                $xml = $this->layoutFiles->parse($path);
 
                 if ($xml === false) {
                     continue;
@@ -96,42 +88,6 @@ class UncacheableBlocks
         }
 
         return ['handle' => null, 'file' => null];
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function filesFor(string $handle): array
-    {
-        // A handle is a file name, so anything else in it is not one this can look up.
-        if (!preg_match('/^[A-Za-z0-9_-]+$/', $handle)) {
-            return [];
-        }
-
-        try {
-            $paths = [];
-
-            foreach ($this->fileSource->getFiles($this->design->getDesignTheme(), $handle . '.xml') as $file) {
-                $paths[] = (string) $file->getFilename();
-            }
-
-            return $paths;
-        } catch (Throwable) {
-            return [];
-        }
-    }
-
-    private function parse(string $path): SimpleXMLElement|false
-    {
-        if (!array_key_exists($path, $this->parsed)) {
-            try {
-                $this->parsed[$path] = simplexml_load_string($this->files->fileGetContents($path)) ?: false;
-            } catch (Throwable) {
-                $this->parsed[$path] = false;
-            }
-        }
-
-        return $this->parsed[$path];
     }
 
     /**

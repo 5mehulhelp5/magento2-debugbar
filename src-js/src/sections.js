@@ -81,6 +81,12 @@ export const SECTIONS = [
     lead: 'Whether this page went into the full page cache, and if not, every reason it did not.',
   },
   {
+    id: 'layout',
+    label: 'Layout',
+    lead: 'The layout handles this request loaded, in order, and the XML files behind each one.',
+    graded: false,
+  },
+  {
     id: 'plugins',
     label: 'Plugins',
     lead: 'Which interceptors were built for this request, and on what.',
@@ -146,6 +152,7 @@ export function countFor(id, state) {
     case 'events': return state.events.unique_count || null
     case 'cache': return state.cache.count || null
     case 'pagecache': return state.pageCache.reason_count || null
+    case 'layout': return state.layout.handle_count || null
     case 'plugins': return state.interception.plugin_count || null
     case 'alpine': return state.alpineComponents.length || null
     case 'magewire': return state.magewireComponents.length || null

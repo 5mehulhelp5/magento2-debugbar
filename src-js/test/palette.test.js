@@ -30,6 +30,7 @@ function state(overrides = {}) {
     events: {},
     cache: {},
     pageCache: {},
+    layout: {},
     interception: {},
     alpineComponents: [],
     magewireComponents: [],

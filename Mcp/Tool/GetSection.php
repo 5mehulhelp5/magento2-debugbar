@@ -35,7 +35,7 @@ class GetSection implements McpToolInterface
                     'type' => 'string',
                     'enum' => [
                         'request', 'queries', 'events', 'observers', 'blocks', 'cache',
-                        'pagecache', 'interception', 'timeline',
+                        'pagecache', 'layout', 'interception', 'timeline',
                     ],
                 ],
                 'cursor' => ['type' => 'integer', 'minimum' => 0, 'default' => 0],
