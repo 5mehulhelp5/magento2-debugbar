@@ -190,6 +190,53 @@ class McpProfilePresenterTest extends TestCase
         $this->assertArrayNotHasKey('recorded_data', $response);
     }
 
+    #[Test]
+    public function seoAnswersWithTheFactsTheHeadingsAskedForAndOnlyTheSeoFindings(): void
+    {
+        $headings = array_map(static fn (int $i): array => ['level' => 2, 'text' => 'H' . $i], range(1, 30));
+        $profile = [
+            'id' => 'id',
+            'findings' => [
+                ['id' => 'seo.h1_multiple', 'section' => 'seo'],
+                ['id' => 'query.slow', 'section' => 'queries'],
+            ],
+            'sections' => [
+                'request' => ['summary' => ['method' => 'GET', 'path' => '/p.html', 'status' => 200]],
+                'seo' => [
+                    'summary' => ['title' => 'P', 'h1_count' => 2],
+                    'payload' => ['canonicals' => ['/p.html'], 'hreflang' => [], 'social' => [], 'items' => $headings],
+                ],
+            ],
+        ];
+
+        $result = $this->presenter($profile)->seo('id', 5);
+
+        $this->assertSame('ok', $result['status']);
+        $this->assertSame('P', $result['summary']['title']);
+        $this->assertCount(5, $result['headings']);
+        $this->assertSame(30, $result['headings_total']);
+        $this->assertSame(['seo.h1_multiple'], array_column($result['findings'], 'id'));
+    }
+
+    #[Test]
+    public function seoOnAResponseWithNoPageSaysSoRatherThanReturningBlanks(): void
+    {
+        $profile = ['id' => 'id', 'sections' => ['seo' => ['summary' => ['skipped' => 'not_html']]]];
+
+        $result = $this->presenter($profile)->seo('id', 5);
+
+        $this->assertSame('not_html', $result['skipped']);
+        $this->assertArrayNotHasKey('summary', $result);
+    }
+
+    #[Test]
+    public function seoOnAProfileWithoutTheSectionIsAnError(): void
+    {
+        $result = $this->presenter(['id' => 'id', 'sections' => []])->seo('id', 5);
+
+        $this->assertSame('error', $result['status']);
+    }
+
     private function presenter(array $profile, int $maxBytes = 100000): McpProfilePresenter
     {
         return new McpProfilePresenter(

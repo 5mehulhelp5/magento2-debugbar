@@ -18,7 +18,7 @@
 
         Constructing HttpPlugin builds whatever its arguments need, and that happens on
         every request in every area before allows() is consulted. Eagerly that is the whole
-        module: nine collectors, nine rules, the filesystem, and the asset repository with
+        module: ten collectors, twelve rules, the filesystem, and the asset repository with
         the design resolver behind it. The module's posture is that it is safe to leave
         installed because it is off by default, and this is what makes that true.
 
@@ -100,6 +100,7 @@
                 <item name="interception" xsi:type="object">Siteation\DebugBar\Collector\InterceptionCollector</item>
                 <item name="pagecache" xsi:type="object">Siteation\DebugBar\Collector\PageCacheCollector</item>
                 <item name="layout" xsi:type="object">Siteation\DebugBar\Collector\LayoutCollector</item>
+                <item name="seo" xsi:type="object">Siteation\DebugBar\Collector\SeoCollector</item>
             </argument>
         </arguments>
     </type>
@@ -115,6 +116,9 @@
                 <item name="observer_slow" xsi:type="object">Siteation\DebugBar\Analysis\Rule\SlowObserverRule</item>
                 <item name="cache_miss" xsi:type="object">Siteation\DebugBar\Analysis\Rule\CacheMissRule</item>
                 <item name="page_not_cached" xsi:type="object">Siteation\DebugBar\Analysis\Rule\PageNotCachedRule</item>
+                <item name="seo_canonical" xsi:type="object">Siteation\DebugBar\Analysis\Rule\SeoCanonicalRule</item>
+                <item name="seo_noindex" xsi:type="object">Siteation\DebugBar\Analysis\Rule\SeoNoindexRule</item>
+                <item name="seo_heading" xsi:type="object">Siteation\DebugBar\Analysis\Rule\SeoHeadingRule</item>
                 <item name="collector_truncated" xsi:type="object">Siteation\DebugBar\Analysis\Rule\TruncatedCollectorRule</item>
             </argument>
         </arguments>
@@ -128,6 +132,7 @@
                 <item name="get_section" xsi:type="object">Siteation\DebugBar\Mcp\Tool\GetSection</item>
                 <item name="inspect_queries" xsi:type="object">Siteation\DebugBar\Mcp\Tool\InspectQueries</item>
                 <item name="compare_profiles" xsi:type="object">Siteation\DebugBar\Mcp\Tool\CompareProfiles</item>
+                <item name="get_seo" xsi:type="object">Siteation\DebugBar\Mcp\Tool\GetSeo</item>
             </argument>
         </arguments>
     </type>

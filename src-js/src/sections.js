@@ -108,7 +108,6 @@ export const SECTIONS = [
     id: 'seo',
     label: 'SEO',
     lead: 'This page as a search engine or a link preview reads it: tags, headings, images, links and structured data.',
-    graded: false,
   },
   {
     id: 'datalayer',

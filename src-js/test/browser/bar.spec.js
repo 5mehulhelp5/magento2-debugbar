@@ -611,6 +611,42 @@ test.describe('the SEO section', () => {
     )).toBe('')
   })
 
+  test('keeps the server\'s reading in the profile, and never calls a page with live warnings clear', async ({ page }) => {
+    await openBar(page)
+    await state(page, (data) => { data.section = 'seo' })
+    await waitForState(page, (data) => data.seo.overview.title.value !== '')
+
+    // The collector read the HTML the server sent, before the bar was injected into it.
+    const server = await state(page, (data) => data.pageProfile.sections.seo.summary)
+
+    expect(server.skipped).toBeUndefined()
+    expect(server.title).toBe((await page.title()).trim())
+
+    const clear = page.locator('.ndb-sheet .ndb-callout.is-clear')
+
+    // No SEO finding on either side: the line is earned.
+    await state(page, (data) => {
+      data.findings = data.findings.filter((finding) => finding.section !== 'seo')
+      data.seo = { ...data.seo, warningCount: 0 }
+    })
+    await expect(clear).toBeVisible()
+
+    // The live checks found something the server rules did not: saying "no clear problem"
+    // above them would contradict the panel.
+    await state(page, (data) => { data.seo = { ...data.seo, warningCount: 2 } })
+    await expect(clear).toBeHidden()
+
+    // A server finding opens the sub view that shows the same thing on the live page.
+    await state(page, (data) => {
+      data.seoTab = 'overview'
+      data.section = 'findings'
+      data.follow({ label: 'Review headings', section: 'seo', filter: 'headings' })
+    })
+    await waitForState(page, (data) => data.section === 'seo' && data.seoTab === 'headings')
+
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+
   test('reads structured data the page gains, draws it, and points at a microdata item', async ({ page }) => {
     await openBar(page)
 

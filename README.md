@@ -91,7 +91,7 @@ Each one says what is wrong, why it matters, where it came from, and what to che
 it again, and diff duration, memory, queries, cache, findings, and the query shapes added or
 removed.
 
-**For an agent**, five read only MCP tools over stdio:
+**For an agent**, six read only MCP tools over stdio:
 
 ```
 claude mcp add --scope local siteation-debugbar -- php /abs/path/to/bin/magento siteation:debugbar:mcp

@@ -48,6 +48,7 @@ class ProfileReport
             $this->cost($profile),
             $this->queries($profile),
             $this->slowest($profile),
+            $this->seo($profile),
         ];
 
         if ($baseline !== null) {
@@ -233,6 +234,56 @@ class ProfileReport
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * What the server told search engines, for a storefront page.
+     *
+     * The findings about it are already in the findings list at the top, so this is the
+     * facts only: what a reader checks a finding against.
+     *
+     * @param array<string, mixed> $profile
+     */
+    private function seo(array $profile): string
+    {
+        $seo = $profile['sections']['seo']['summary'] ?? null;
+
+        if (!is_array($seo) || isset($seo['skipped']) || !isset($seo['title_length'])) {
+            return '';
+        }
+
+        $none = static fn (mixed $value): string => (string) $value === '' ? 'none' : (string) $value;
+        $types = (array) ($seo['schema_types'] ?? []);
+
+        $rows = [
+            ['Title', sprintf('%s (%d characters)', $this->cell($none($seo['title'] ?? '')), $seo['title_length'])],
+            ['Description', sprintf('%d characters', (int) ($seo['description_length'] ?? 0))],
+            ['Canonical', $this->cell($none($seo['canonical'] ?? ''))
+                . ((int) ($seo['canonical_count'] ?? 0) > 1 ? sprintf(' (%d links)', $seo['canonical_count']) : '')],
+            ['Robots', $this->cell($none(trim(implode(', ', array_filter([
+                (string) ($seo['robots'] ?? ''),
+                ($seo['robots_header'] ?? '') === '' ? '' : 'header: ' . $seo['robots_header'],
+            ])))))],
+            ['Language', $this->cell($none($seo['lang'] ?? ''))
+                . sprintf(', %d hreflang alternates', (int) ($seo['hreflang_count'] ?? 0))],
+            ['H1', sprintf('%d', (int) ($seo['h1_count'] ?? 0))
+                . (($seo['h1'] ?? '') === '' ? '' : ', first: ' . $this->cell((string) $seo['h1']))],
+            ['Structured data', $types === [] ? 'none' : $this->cell(implode(', ', $types))],
+        ];
+
+        $lines = ['## SEO, as the server sent it', '', '| | |', '| --- | --- |'];
+
+        foreach ($rows as [$label, $value]) {
+            $lines[] = sprintf('| %s | %s |', $label, $value);
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /** Page text in a table cell: one line, no pipe to end the cell early. */
+    private function cell(string $value): string
+    {
+        return str_replace('|', '\|', $this->label($value));
     }
 
     /**

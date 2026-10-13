@@ -1019,6 +1019,22 @@ export function debugBar() {
       return this.findings.filter((finding) => finding.section === this.section)
     },
 
+    /**
+     * Whether to say that nothing in this section matched a rule.
+     *
+     * The SEO rules read the server's HTML, and the panel below reads the live page with
+     * checks of its own. "No clear problem found" above a list of the panel's own warnings
+     * would contradict it, so the line is only drawn when both agree.
+     *
+     * @returns {boolean}
+     */
+    get sectionClear() {
+      if (this.currentSection.graded === false || this.section === 'findings') return false
+      if (this.sectionFindings.length > 0) return false
+
+      return this.section !== 'seo' || !this.seo.warningCount
+    },
+
     /** @param {string} id */
     isFavourite(id) {
       return this.favourites.includes(id)
@@ -1441,6 +1457,12 @@ export function debugBar() {
       if (action.filter && action.section === 'queries') {
         this.queryFilter = action.filter
         this.querySearch = ''
+      }
+
+      // The SEO findings come from the server's HTML and name the sub view that shows the
+      // same thing on the live page.
+      if (action.filter && action.section === 'seo') {
+        this.seoTab = action.filter
       }
 
       this.select(action.section)

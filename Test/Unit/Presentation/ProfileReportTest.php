@@ -110,6 +110,46 @@ class ProfileReportTest extends TestCase
         $this->assertStringContainsString('New finding: The request took 3287 ms.', $markdown);
     }
 
+    #[Test]
+    public function aStorefrontPageCarriesWhatTheServerToldSearchEngines(): void
+    {
+        $profile = $this->profile();
+        $profile['sections']['seo'] = ['summary' => [
+            'title' => 'Bikes | Shop',
+            'title_length' => 12,
+            'description_length' => 0,
+            'canonical' => '',
+            'canonical_count' => 0,
+            'robots' => 'NOINDEX,FOLLOW',
+            'robots_header' => '',
+            'lang' => 'en',
+            'hreflang_count' => 0,
+            'h1' => 'Bikes',
+            'h1_count' => 1,
+            'schema_types' => ['Product', 'Offer'],
+        ]];
+
+        $markdown = $this->report()->render($profile);
+
+        $this->assertStringContainsString('## SEO, as the server sent it', $markdown);
+        $this->assertStringContainsString(
+            '| Title | Bikes \\| Shop (12 characters) |',
+            $markdown,
+            'a pipe in page text must not end the cell'
+        );
+        $this->assertStringContainsString('| Canonical | none |', $markdown);
+        $this->assertStringContainsString('| Structured data | Product, Offer |', $markdown);
+    }
+
+    #[Test]
+    public function aResponseWithNoPageHasNoSeoBlock(): void
+    {
+        $profile = $this->profile();
+        $profile['sections']['seo'] = ['summary' => ['skipped' => 'not_html']];
+
+        $this->assertStringNotContainsString('## SEO', $this->report()->render($profile));
+    }
+
     private function report(): ProfileReport
     {
         $summary = new ProfileSummary();
