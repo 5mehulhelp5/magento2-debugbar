@@ -10001,8 +10001,8 @@ const Fh = `
                     </td>
                     <td>
                       <span data-ndb-text="row.source"></span>
-                      <code class="ndb-mono" data-ndb-show="row.key" data-ndb-text="row.key"></code>
-                      <small class="ndb-dim" data-ndb-show="row.matches === false"
+                      <code class="ndb-mono ndb-source-key" data-ndb-show="row.key" data-ndb-text="row.key"></code>
+                      <small class="ndb-dim ndb-source-key" data-ndb-show="row.matches === false"
                              data-ndb-text="'Magento would give: ' + (row.expected || 'nothing')"></small>
                     </td>
                     <td>

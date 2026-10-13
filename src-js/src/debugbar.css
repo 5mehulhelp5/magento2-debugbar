@@ -1835,6 +1835,8 @@
 /* A row label breaks between words only: the values beside it take the width. */
 .ndb-table td.ndb-fact { overflow-wrap: normal; }
 
+.ndb-source-key { display: block; }
+
 .ndb-delta {
   font-weight: 700;
   font-variant-numeric: tabular-nums;

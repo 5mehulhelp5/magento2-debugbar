@@ -128,7 +128,7 @@ class SeoSources
             $rows[] = $this->row('title', 'Title', self::FROM_ATTRIBUTE, "$noun attribute", 'meta_title',
                 $this->withAffixes($metaTitle), (string) ($record['title'] ?? ''), $edit);
         } elseif ($type === 'product') {
-            $rows[] = $this->row('title', 'Title', self::FROM_ATTRIBUTE, 'Product name, as meta_title is empty', 'name',
+            $rows[] = $this->row('title', 'Title', self::FROM_ATTRIBUTE, 'Product attribute, as meta_title is empty', 'name',
                 $this->withAffixes($name), (string) ($record['title'] ?? ''), $edit);
         } else {
             // The category names along the breadcrumb, current first. Predicting that means
@@ -140,7 +140,7 @@ class SeoSources
         }
 
         $rows[] = $this->description("$noun attribute", (string) $entity->getData('meta_description'), $record, $edit);
-        $rows[] = $this->row('h1', 'H1', self::FROM_ATTRIBUTE, "$noun name", 'name', $name,
+        $rows[] = $this->row('h1', 'H1', self::FROM_ATTRIBUTE, "$noun attribute", 'name', $name,
             (string) ($record['h1'] ?? ''), $edit);
 
         $on = $this->scopeConfig->isSetFlag($canonicalSetting, ScopeInterface::SCOPE_STORE);
@@ -186,7 +186,7 @@ class SeoSources
             $metaTitle !== ''
                 ? $this->row('title', 'Title', self::FROM_FIELD, 'CMS page field', 'meta_title',
                     $this->withAffixes($metaTitle), (string) ($record['title'] ?? ''), $edit)
-                : $this->row('title', 'Title', self::FROM_FIELD, 'CMS page title, as meta_title is empty', 'title',
+                : $this->row('title', 'Title', self::FROM_FIELD, 'CMS page field, as meta_title is empty', 'title',
                     $this->withAffixes((string) $page['title']), (string) ($record['title'] ?? ''), $edit),
             $this->description('CMS page field', (string) $page['meta_description'], $record, $edit),
             $this->row('h1', 'H1', self::FROM_FIELD, 'CMS page field', 'content_heading',
@@ -214,7 +214,7 @@ class SeoSources
         }
 
         return $this->row('description', 'Meta description', self::FROM_SETTING,
-            'Default description, as meta_description is empty', self::DEFAULT_DESCRIPTION,
+            'Setting, as meta_description is empty', self::DEFAULT_DESCRIPTION,
             (string) $this->setting(self::DEFAULT_DESCRIPTION), $served, $this->editLink->forTarget('design_config'));
     }
 
