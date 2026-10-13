@@ -24,9 +24,10 @@ Every profile is already redacted and bounded. The tools are read only and chang
    request and it is small.
 2. Then the smallest section that tests that conclusion, with `get_debug_profile_section`.
    It serves one of `request`, `queries`, `events`, `observers`, `blocks`, `cache`,
-   `pagecache`, `layout`, `interception` or `timeline`, a page at a time: pass `limit`, and feed the `next_cursor` it
-   returns back as `cursor` to read the next page. `timeline` is the whole request in order, which is the
-   fastest way to see where the time went when no single section stands out.
+   `pagecache`, `layout`, `interception`, `seo` or `timeline`, a page at a time: pass
+   `limit`, and feed the `next_cursor` it returns back as `cursor` to read the next page.
+   `timeline` is the whole request in order, which is the fastest way to see where the time
+   went when no single section stands out. For SEO, `get_debug_seo` is the better read.
 3. `inspect_debug_queries` only when the evidence points at the database. Start with
    `filter: "slow"` and `limit: 5`.
 
@@ -35,7 +36,8 @@ Ask for small limits. Start with 10 profiles, 10 findings, 5 items. Increase or 
 
 ## Measure a change, do not guess at it
 
-`compare_debug_profiles` takes two profile ids and reports what moved between them:
+`compare_debug_profiles` takes two profile ids, `baseline_profile_id` (before the change)
+and `subject_profile_id` (after it), and reports what moved between them:
 duration, memory, queries, cache and findings, with query shapes matched by fingerprint so
 a repeated query that went away is visible as such. Its `seo` key lists the SEO facts the
 server sent that differ, each with both values, or says why one side has no SEO record.
@@ -73,12 +75,14 @@ that a fix helped rather than that it looks like it should have.
 * **Ask `get_debug_seo` what a page told search engines.** It is the HTML the server sent:
   title, description, canonical, robots meta and header, hreflang, headings, social tags and
   structured data types, with the `seo.*` findings. `sources` says where each value came
-  from (attribute, CMS field or setting) and `matches: false` marks one that something past
-  Magento's own rule set: look for a plugin, observer, layout XML or SEO extension, not at
-  the attribute. What JavaScript changed afterwards is not
-  in it, and neither are the bar's live SEO checks (image sizes, link problems, whether a
-  rich result is complete), so do not report a page as free of SEO problems from a profile.
-  A `skipped` value means the response held no storefront page to read.
+  from (attribute, CMS field or setting) and `matches: false` marks one that something set
+  past Magento's own rule set: look for a plugin, observer, layout XML or SEO extension, not
+  at the attribute. `headings` sets how many headings come back (20 by default). What
+  JavaScript changed afterwards is not in it, and neither are the bar's live SEO checks
+  (image sizes, link problems, whether a rich result is complete), so do not report a page
+  as free of SEO problems from a profile. A `skipped` value means the response held no
+  storefront page to read. A product or category served from the full page cache has no
+  `sources`, because that request never loaded the product.
 * **Data layer findings are not in a profile either.** The Data layer section reads
   `window.dataLayer` in the browser. Nothing a page pushed reaches these tools.
 * **Nor are Web Vitals.** LCP, CLS and INP are measured by the browser the page is open in.

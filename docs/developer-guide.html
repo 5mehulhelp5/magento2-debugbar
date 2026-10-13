@@ -76,6 +76,14 @@
   li > code:first-child { font-weight: 600; }
 
   a { color: var(--accent); }
+  img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 0 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
   a.anchor { color: inherit; text-decoration: none; }
   a.anchor:hover { text-decoration: underline; }
 
@@ -122,7 +130,7 @@
 <h1 id="developer-guide"><a class="anchor" href="#developer-guide">Developer guide</a></h1>
 <p>For working on Siteation_DebugBar itself. If you want to use it, read the <a href="user-guide.html">user guide</a>.</p>
 <h2 id="layout"><a class="anchor" href="#layout">Layout</a></h2>
-<table><tbody><tr><td><code>Api/</code></td><td><code>CollectorInterface</code>, <code>RuleInterface</code>, <code>McpToolInterface</code></td></tr><tr><td><code>Plugin/</code></td><td>The entry hook and the six collection hooks</td></tr><tr><td><code>Collector/</code></td><td>Ten collectors and the abstract they share</td></tr><tr><td><code>Analysis/</code></td><td>Findings, rules, the query analyzer, the timeline, the comparer</td></tr><tr><td><code>Model/</code></td><td>Config, the gate, the access key, the store, the redactor, the layout file lookup</td></tr><tr><td><code>Presentation/</code></td><td>Bar injection, the markdown report, the MCP presenter</td></tr><tr><td><code>Mcp/</code></td><td>JSON-RPC server and six tools</td></tr><tr><td><code>Controller/Profile/</code></td><td><code>view</code>, <code>history</code>, <code>compare</code></td></tr><tr><td><code>Console/</code></td><td><code>siteation:debugbar:mcp</code>, <code>siteation:debugbar:report</code></td></tr><tr><td><code>src-js/</code></td><td>Alpine sources for the bar; build output is committed</td></tr><tr><td><code>view/base/web/</code></td><td>The committed build output</td></tr><tr><td><code>dev/</code></td><td><code>smoke</code>, an HTTP test over a running store, and <code>docs</code></td></tr></tbody></table>
+<table><tbody><tr><td><code>Api/</code></td><td><code>CollectorInterface</code>, <code>RuleInterface</code>, <code>McpToolInterface</code></td></tr><tr><td><code>Plugin/</code></td><td>The entry hook and the seven collection hooks</td></tr><tr><td><code>Collector/</code></td><td>Ten collectors and the abstract they share</td></tr><tr><td><code>Analysis/</code></td><td>Findings, rules, the query analyzer, the timeline, the comparer</td></tr><tr><td><code>Model/</code></td><td>Config, the gate, the access key, the store, the redactor, the layout file lookup, SEO sources, the admin edit link</td></tr><tr><td><code>Presentation/</code></td><td>Bar injection, the markdown report, the MCP presenter</td></tr><tr><td><code>Mcp/</code></td><td>JSON-RPC server and six tools</td></tr><tr><td><code>Controller/</code></td><td><code>Profile/</code>: <code>view</code>, <code>history</code>, <code>compare</code>; <code>Adminhtml/Entity/Edit</code>: the admin edit link</td></tr><tr><td><code>Console/</code></td><td><code>siteation:debugbar:mcp</code>, <code>siteation:debugbar:report</code></td></tr><tr><td><code>src-js/</code></td><td>Alpine sources for the bar; build output is committed</td></tr><tr><td><code>view/base/web/</code></td><td>The committed build output</td></tr><tr><td><code>dev/</code></td><td><code>smoke</code>, an HTTP test over a running store, and <code>docs</code>, the guide renderer</td></tr></tbody></table>
 <p>PHP is edited in place. The package installs as a Composer path symlink, so nothing needs reinstalling after an edit.</p>
 <h2 id="how-a-request-becomes-a-profile"><a class="anchor" href="#how-a-request-becomes-a-profile">How a request becomes a profile</a></h2>
 <p><strong>One entry hook.</strong> An <code>around</code> plugin on <code>Magento\Framework\App\Http::launch()</code> brackets every web request in every area.</p>
@@ -131,7 +139,7 @@
 <ol>
 <li><code>RequestEligibility::allows()</code> decides whether to profile at all. It reads the config flag, the area list, the IP allowlist, the access key, and whether this is one of the bar&#039;s own endpoints.</li>
 <li><code>ProfileManager</code> starts collecting. Every plugin records through it, and it holds a single boolean that the plugins branch on, so an unprofiled request pays a plugin hop and no config read.</li>
-<li><code>proceed()</code> runs the application. The query, event, observer, block and cache plugins record as they fire.</li>
+<li><code>proceed()</code> runs the application. The query, event, observer, block, cache, layout and page cache plugins record as they fire.</li>
 <li><code>finalize()</code> asks each enabled collector for its section, builds the timeline, runs the rules, and hands the result to <code>ProfileStore</code>.</li>
 <li><code>BarInjector</code> sets the profile header, marks the response unshareable, and injects the bar if the response can carry one.</li>
 </ol>
@@ -142,10 +150,19 @@
 <p><code>AbstractCollector</code> does redaction, bounding and <code>at_ms</code> stamping once for all of them. Do not do any of those in your collector; a collector that bypasses the abstract is how the contract stops meaning anything.</p>
 <p>Recording is done through <code>ProfileManager::quietly()</code>, which is also where the &quot;is this section switched on&quot; decision is honoured, so a section that is off costs nothing rather than being gathered and hidden.</p>
 <p>Add the section to <code>src-js/src/sections.js</code> as well, or the panel will never be drawn. <code>Test/Unit/Analysis/RuleSectionTest.php</code> reads that list from PHP, so the two cannot drift.</p>
+<h2 id="adding-a-section"><a class="anchor" href="#adding-a-section">Adding a section</a></h2>
+<p>A section is what the sidebar lists. It does not need a collector: Alpine, Magewire, the data layer and Web Vitals read the live page and have none.</p>
+<ol>
+<li>An entry in <code>SECTIONS</code> in <code>src-js/src/sections.js</code>: <code>id</code>, <code>label</code>, a <code>lead</code> that says what the panel is for, and <code>graded: false</code> when no rule can produce a finding for it.</li>
+<li>Its badge in <code>countFor()</code> in the same file, or <code>null</code> for none.</li>
+<li>Its panel in <code>src-js/src/template.js</code>, inside <code>isSection(&#039;&lt;id&gt;&#039;)</code>. Sub views use <code>subTabs()</code> from <code>tabs.js</code>.</li>
+<li>An option in <code>Model\Config\Source\Sections</code>, with the same id, so it can be switched off. Findings and Overview are left out of that list on purpose.</li>
+</ol>
+<p>The browser suite walks every section and every sub view, so a new one is covered as soon as it is in the list.</p>
 <h2 id="adding-a-rule"><a class="anchor" href="#adding-a-rule">Adding a rule</a></h2>
 <p>Implement <code>Api\RuleInterface</code> and register it in the rules array in <code>etc/di.xml</code>. A rule that throws is skipped and logged rather than taking the profile with it.</p>
 <p>A rule returns <code>Analysis\Finding</code> objects. Each carries a severity, a message, where it came from, what to check next, and the section and filter holding its evidence. Point the action at a filter that actually narrows: mapping <code>repeated</code> to <code>all</code> is no filter at all, which is a mistake this codebase has already made once.</p>
-<p>Twelve rules ship, producing sixteen kinds of finding. <code>RequestErrorRule</code>, <code>RepeatedQueryRule</code>, <code>SeoCanonicalRule</code> and <code>SeoHeadingRule</code> emit two each.</p>
+<p>Thirteen rules ship, producing nineteen kinds of finding. <code>RequestErrorRule</code>, <code>RepeatedQueryRule</code>, <code>SeoCanonicalRule</code> and <code>SeoHeadingRule</code> emit two each, and <code>SeoSchemaOfferRule</code> three.</p>
 <h2 id="the-profile"><a class="anchor" href="#the-profile">The profile</a></h2>
 <p>One JSON file per request under <code>var/siteation_debugbar/</code>, <code>0600</code> inside a <code>0700</code> directory, pruned to 20 files or 60 minutes.</p>
 <p>Retention is enforced twice. <code>ProfileStore::tidy()</code> sweeps on a write and when the history endpoint is read, and <code>get()</code> refuses anything past the age bound whether or not a sweep has reached it. <code>get()</code> refuses rather than deletes: the MCP tools read through the same path and are advertised as read only.</p>
@@ -167,7 +184,7 @@ npm run build         # or npm run dev, which watches the main bundle</code></pr
 <p><strong>Its own bundled Alpine</strong>, the CSP build, under a <code>data-ndb-</code> prefix, started with <code>Alpine.initTree(root)</code> and never <code>Alpine.start()</code>. A full start installs a document wide mutation observer that would claim the host theme&#039;s <code>@click</code> shorthands and bind every handler twice.</p>
 <p><strong>No inline script or style.</strong> The profile travels as <code>&lt;script type=&quot;application/json&quot;&gt;</code> and everything else is an external file, so <code>Magento_Csp</code> needs no nonce and no <code>unsafe-inline</code>.</p>
 <p><strong>Only summaries are embedded</strong>, about 1.5 kB. Section payloads are fetched from <code>profile/view</code> on first open.</p>
-<p>File by file: <code>state.js</code> is the Alpine component, <code>template.js</code> the markup, <code>sections.js</code> the section list, <code>header.js</code> the header used by both the dock and the sheet, <code>palette.js</code> the command list, <code>alpine.js</code> and <code>magewire.js</code> the two live readers, <code>early.js</code> the request watcher and error capture that loads in the head.</p>
+<p>File by file: <code>state.js</code> is the Alpine component, <code>template.js</code> the markup, <code>sections.js</code> the section list, <code>header.js</code> the header used by both the dock and the sheet, <code>palette.js</code> the command list, <code>alpine.js</code> and <code>magewire.js</code> the two live readers, <code>early.js</code> the request watcher and error capture that loads in the head. <code>nav.js</code> draws the sidebar, <code>tabs.js</code> the sub views, <code>dock.js</code> keeps the collapsed bar inside the screen, <code>requests.js</code> brings the early watcher&#039;s requests into the bar, and <code>transport.js</code> is every JSON read the bar makes.</p>
 <p><code>seo.js</code> holds the SEO checks as plain functions that take a <code>Document</code>, plus an environment for what only a browser can answer (is it visible, how big is it drawn, where is the first screen). <code>seo-page.js</code> is the live half: it reads the real document, keeps the elements it found out of the bar&#039;s reactive state, and draws and removes the outlines. A new check goes in <code>seo.js</code> with a fixture in <code>test/seo.test.js</code>.</p>
 <p><code>Collector\SeoCollector</code> is the server&#039;s half. It parses the response with <code>DOMDocument</code> in <code>finalize()</code>, after the page has rendered and before the bar is injected, and keeps what the HTML told search engines. Its checks mirror the ones in <code>seo.js</code> where both read the same tag, so a canonical found by one is found by the other: <code>rel</code> is a token list matched without case, and headings inside a <code>&lt;template&gt;</code> do not count. The SEO rules read only its summary, which is embedded in every page, so anything long goes in the payload. <code>serverVersusLive()</code> in <code>seo.js</code> compares that summary with the live reading, so a value both sides cut (the server keeps 300 characters, the bar 160) is compared up to the shorter cut. <code>ProfileComparer</code> lists the summary fields that differ between two profiles, already formatted, so the bar, the report and MCP print the same values.</p>
 <p><code>schema.js</code> is the Schema view: it reads JSON-LD and microdata into one entity shape and checks them against <code>RICH_RESULT_RULES</code>, one table of required and recommended properties per type with the Google page each came from. When Google changes a rule, change that table and its test in <code>test/schema.test.js</code>.</p>
@@ -177,19 +194,27 @@ npm run build         # or npm run dev, which watches the main bundle</code></pr
 <p><code>Model\SeoSources</code> says where each SEO value came from. It follows the rule Magento&#039;s own code uses (<code>Catalog\Helper\Product\View</code>, <code>Catalog\Block\Category\View</code>, <code>Cms\Block\Page</code>, and <code>Framework\View\Page\Config</code> and <code>Title</code> for the defaults and the title prefix and suffix), predicts the value, and compares it with what SeoCollector read. The product and category come from the registry, as the controller left them, so there is no dependency on the catalog module and nothing on a full page cache hit. When Magento changes one of those rules, change it here. It also states the product&#039;s final price in both tax modes and whether it is salable, which <code>SeoSchemaOfferRule</code> checks the structured data&#039;s offers against.</p>
 <h2 id="mcp"><a class="anchor" href="#mcp">MCP</a></h2>
 <p><code>bin/magento siteation:debugbar:mcp</code>, hand rolled JSON-RPC 2.0 over newline delimited stdio, six read only tools. It starts in about 0.2 seconds because it only reads files.</p>
+<table><thead><tr><th>Tool</th><th>Class</th></tr></thead><tbody><tr><td><code>list_debug_profiles</code></td><td><code>Mcp\Tool\ListProfiles</code></td></tr><tr><td><code>get_debug_findings</code></td><td><code>Mcp\Tool\GetFindings</code></td></tr><tr><td><code>get_debug_profile_section</code></td><td><code>Mcp\Tool\GetSection</code></td></tr><tr><td><code>inspect_debug_queries</code></td><td><code>Mcp\Tool\InspectQueries</code></td></tr><tr><td><code>compare_debug_profiles</code></td><td><code>Mcp\Tool\CompareProfiles</code></td></tr><tr><td><code>get_debug_seo</code></td><td><code>Mcp\Tool\GetSeo</code></td></tr></tbody></table>
 <p>Add a tool by implementing <code>Api\McpToolInterface</code> and registering it in the tools array in <code>etc/di.xml</code>. Shaping belongs in <code>Presentation\McpProfilePresenter</code>, which bounds every response by item count and byte budget and labels the payload as recorded data.</p>
 <p><strong>The presenter&#039;s envelope is built inside the byte budget</strong>, so anything added to it is paid for out of the response rather than pushing it over.</p>
 <h2 id="testing"><a class="anchor" href="#testing">Testing</a></h2>
 <pre><code>vendor/bin/phpcs  --standard=&lt;pkg&gt;/phpcs.xml.dist &lt;pkg&gt;
 vendor/bin/phpstan analyse -c &lt;pkg&gt;/phpstan.neon.dist
-vendor/bin/phpunit --configuration &lt;pkg&gt;/phpunit.xml.dist      # 288 tests
-&lt;pkg&gt;/dev/smoke https://your-store.test admin                  # 31 assertions over HTTP
+vendor/bin/phpunit --configuration &lt;pkg&gt;/phpunit.xml.dist      # 291 tests
+&lt;pkg&gt;/dev/smoke https://your-store.test admin                  # 31 checks over HTTP
 cd &lt;pkg&gt;/src-js &amp;&amp; npm test                                    # 163, no store needed
-cd &lt;pkg&gt;/src-js &amp;&amp; npm run test:browser                        # 29, needs the store up</code></pre>
+cd &lt;pkg&gt;/src-js &amp;&amp; npm run test:browser                        # 30, needs the store up</code></pre>
 <p><strong>The supported PHP range is checked separately</strong>, because <code>phpstan.neon.dist</code> has to keep working with the PHPStan a Magento install carries, and that one is pinned to 1.x by Magento and by rector. <code>phpstan-versions.neon.dist</code> layers the range from <code>composer.json</code> on top of it and needs PHPStan 2.1 or newer, so bring your own and run it from the Magento root, where it finds the autoloader:</p>
 <pre><code>composer global require phpstan/phpstan:^2.2
 ~/.composer/vendor/bin/phpstan analyse -c &lt;pkg&gt;/phpstan-versions.neon.dist</code></pre>
 <p>That pass is what says the constraint is honest. It reports a typed class constant or a <code>json_validate()</code> as unavailable rather than waiting for a 8.2 install to find it at runtime. Change the constraint in <code>composer.json</code> and change the range beside it.</p>
+<h3 id="dev-smoke"><a class="anchor" href="#dev-smoke">dev/smoke</a></h3>
+<pre><code>dev/smoke &lt;base-url&gt; [admin-path]
+dev/smoke https://your-store.test admin</code></pre>
+<p>An end to end check over HTTP, needing <code>bash</code>, <code>curl</code> and <code>python3</code>. It loads the cart page and checks the bar is injected the way it should be (profile header, the early watcher, the profile embedded as data with summaries only, the value policy and editor root), reads that profile back through <code>profile/view</code> section by section, including the SEO facts and the markdown format, lists the history, compares two stored profiles, refuses bad ids, and checks that the admin, GraphQL and REST are profiled with their bodies untouched and that the bar&#039;s own endpoint is not profiled. The admin path defaults to <code>admin</code>.</p>
+<p>Run it against a store in developer mode with no access key, or every check that needs the profile header fails. A check that cannot run, such as a compare on a store holding only one profile, is counted as skipped rather than passed. It exits non-zero when anything fails, and 64 when no URL is given.</p>
+<h3 id="dev-docs"><a class="anchor" href="#dev-docs">dev/docs</a></h3>
+<p><code>php dev/docs</code> renders <code>docs/user-guide.md</code> and <code>docs/developer-guide.md</code> to the HTML beside them. See <a href="#documentation">Documentation</a>.</p>
 <p>Magento&#039;s integration framework is deliberately not used. It needs its own database and install and runs in minutes; <code>dev/smoke</code> drives a real store over HTTP across all four areas in seconds and asserts the same regressions.</p>
 <p><strong>The browser suite is the one that catches a binding that throws.</strong> <code>early.js</code> watches <code>console.warn</code> for every Alpine on the page, including the bar&#039;s own, and the suite walks every section and sub-tab and asserts that buffer is empty. A throwing binding renders as an empty element and says nothing otherwise. Two of the tests run under an injected policy that forbids <code>unsafe-eval</code>, because the store&#039;s own policy is report-only on most pages and the violations the bar used to commit were reported and never blocked.</p>
 <p>Two habits that suite enforces: the header is built once and used twice, so a header selector without <code>.ndb-sheet</code> matches both; and selecting a section starts work, so wait for the state rather than for a length of time.</p>
@@ -245,6 +270,8 @@ cd &lt;pkg&gt;/src-js &amp;&amp; npm run test:browser                        # 2
 <p>The two guides are Markdown, and their HTML is generated:</p>
 <pre><code>php dev/docs</code></pre>
 <p>Edit the <code>.md</code>. The <code>.html</code> is a view of it, and <code>dev/docs</code> is the only place the two can differ. It needs no dependencies, for the same reason the bar ships prebuilt.</p>
+<p>It understands the Markdown the guides use: headings, paragraphs, lists without nesting, fenced code, tables, inline code, bold, links and images. Write an image reference style, <code>![alt][name]</code> with a <code>[name]: ../assets/file.webp &quot;Title&quot;</code> line at the end of the guide, so the same path works on GitHub and from the rendered page.</p>
+<p>The screenshots live in <code>assets/</code> and are WebP. The README and the user guide both use them.</p>
 <h2 id="releasing"><a class="anchor" href="#releasing">Releasing</a></h2>
 <ol>
 <li>Everything green: phpcs, phpstan, phpunit, smoke, both JS suites.</li>

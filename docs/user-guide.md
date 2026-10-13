@@ -62,6 +62,8 @@ edge" from the palette, to hand it back to the nearest standard edge.
 **Open**, it is a modal sheet with a sidebar. The page behind it is made inert, so a click
 lands where you meant it rather than on the store.
 
+![The bar open on Overview][shot-overview]
+
 **The bubble.** Closing the bar with the X collapses it to a small circle in the corner. It
 keeps the findings count, so you can tell at a glance whether reopening is worth it, and it
 follows the top or bottom placement setting. Clicking it brings the bar back. This is
@@ -84,9 +86,15 @@ nothing would be left on screen to undo it.
 
 The palette holds everything: every section, the three themes, the top or bottom placement,
 pinning a section to favourites, the window controls, copying the report, and hiding the bar.
-Filter it by typing.
+Filter it by typing. The theme follows the system unless you pick light or dark.
+
+![The bar in the dark theme][shot-overview-dark]
+
 
 ## The sections
+
+The sidebar lists them in this order. Each one has a count beside it when there is something
+to count, and a section a rule found something in opens with that finding at the top.
 
 | Section | What it answers |
 | --- | --- |
@@ -106,16 +114,179 @@ Filter it by typing.
 | SEO | The page as a search engine or a link preview reads it |
 | Data layer | What the page pushed to `window.dataLayer`, its tags, and their consent state |
 | Web Vitals | How fast this page loaded, how much it moved, and how quickly it answered input |
-| History | Every profile still on disk, so an earlier request is one click away |
+| History | Every profile still on disk, so an earlier request is one click away, and Compare |
 
 Alpine, Magewire, SEO, Data layer and Web Vitals read the live page rather than the stored
 profile, so they show what is in the browser now. Everything else is the profile. SEO is the
 one with a half in both: the views read the live page, and the profile keeps what the server
 sent, which is what the SEO findings are about.
 
+Only summaries travel with the page, about 1.5 kB. A section's contents are fetched the
+first time you open it.
+
+You can switch sections off entirely in the configuration. A section that is off is not
+collected either, so turning off Blocks on a page that renders four hundred of them makes
+the request you are measuring cheaper as well as the panel quieter. Findings and Overview
+are always on. Under **Sections**, select the ones to keep; selecting none keeps them all. A
+store that saved a list keeps it, so a section added in a later version stays off there until
+you select it.
+
+### Findings
+
+The module's own conclusions about the request, worst first. Each says what is wrong, why it
+matters, where it came from and what to check next, with a button to the section and filter
+holding the evidence. [Reading findings](#reading-findings) lists every kind.
+
+![Findings, worst first][shot-findings]
+
+### Overview
+
+The request as four steps: **Received** (path, method, area, document or AJAX, scheme, deploy
+mode), **Matched** (route, action, how many types were intercepted and how many observers
+ran), and **Responded** (status, response size, duration, peak memory, and the query, block,
+event and cache totals). A Magewire update adds a **Magewire** step naming the component,
+the action and the number of updates, because the path is the same for every one of them.
+
+**Copy for AI** puts the request on the clipboard as markdown, the same text as
+`siteation:debugbar:report`. A request with no queries and no events says it was almost
+certainly a full page cache hit.
+
+### Timeline
+
+The request's important work as a waterfall: spans as bars, single events as dots, on one
+time axis. **Key activity** hides anything under a millisecond except the request's
+milestones; **Everything** shows it all. Search by event name or by section.
+
+### Queries
+
+Every query, slowest marked, with its type, its SQL and the application frame that ran it.
+**Slow** shows the ones past the slow query threshold. **Repeated** shows the statements
+whose shape ran more than once; the finding only speaks up at three. Filter by any part of
+the SQL. With an editor set, the frame is a link that opens the file at the line. When the
+collector hit its cap the section says how many queries were not kept.
+
+### Blocks
+
+Every block that rendered, with how often, its **own** time and its **total** time. Own time
+leaves out the blocks rendered inside it, so it is the column that points at the block worth
+fixing. Filter by name, class or template. The Layout section can narrow the list to the
+blocks one handle put on the page.
+
+### Observers
+
+Every observer that actually ran, with its event, how many times it ran and its time. A
+listener that was configured but skipped is not here. Filter by observer or event.
+
+### Events
+
+Every dispatched event, with how often, how many observers it has and their time.
+**Unobserved** shows the events nothing listens to, which is where a new observer can hook
+in.
+
+### Cache
+
+Cache reads and writes grouped by key prefix: operations, hits, misses, size and time, with
+the hit rate the Overview shows.
+
+### Page cache
+
+Answers "why is this page not cached?" with Magento's own reasons, not a guess. The verdict
+is one of:
+
+- **Served from the full page cache**: the built-in cache answered, so no layout, block or
+  query ran. There are no reasons to show; clean the `full_page` cache and reload to see them.
+- **Stored for the next request**: the page was generated and saved.
+- **Offered to Varnish as cacheable**: on Varnish, PHP never sees a hit, so this is as far as
+  the bar can tell.
+- **Not cached**, with every reason in the order Magento checks them: the `full_page` cache
+  type is off, the method is not GET or HEAD, maintenance mode is on, a block is marked
+  `cacheable="false"`, the status is not 200 or 404, or the response was not offered as public.
+
+A block marked `cacheable="false"` makes the whole page uncacheable, and it is the usual
+cause. The table lists each one that made it into the page, with the layout handle and the
+file that declared it. A block that a layout removed is not listed, because it does not
+stop caching.
+
+The headers are the ones the application handed to the cache. The built-in cache rewrites
+`Cache-Control` once it has stored a page, so the response your browser receives always looks
+uncacheable. `Set-Cookie` lists cookie names only, and is marked when a page that should be
+cached sets one. `X-Magento-Cache-Debug` is only sent in developer mode.
+
+A CMS page, category or product page that was not cached is a finding: a warning, or a note
+when the only reason is that the cache is switched off.
+
+![The Page cache section explaining why a page was not cached][shot-page-cache]
+
+### Layout
+
+Answers "which XML put this on the page?". It lists every layout handle the request loaded,
+in the order Magento merged them, and under each handle the files that define it, with the
+module that ships each file or the theme that overrides it. Filter by a handle name or by
+any part of a file path.
+
+A handle the page did not ask for directly, because a layout file pulled it in with
+`<update handle="..."/>`, is listed after that handle and marked **via** it. A request can
+also generate a layout of its own beside the page's, for prices or an email. Those handles
+come after the page's and are marked **separate layout**.
+
+The file paths are the files the merge read. A theme or module that rewrites layout files
+before the merge shows its rewritten copy.
+
+Each handle with blocks of its own has a button for them. It opens the Blocks section,
+filtered to the blocks that handle put on the page; the filter shows above the list, and
+clicking it clears it. A block counts for the first handle, in merge order, whose files
+declare it, which is the same rule the Page cache section uses to name the handle of an
+uncacheable block. A block that a later file removed is not counted.
+
+The lookup runs after the page has rendered, so it does not distort the block timings,
+but it does read every file of every handle and adds to the request's total time. Turn the
+section off under **Sections** if that matters on a page you are measuring.
+
+![The Layout section, with handles in merge order and the files behind each][shot-layout]
+
+### Plugins
+
+The types Magento built an interceptor for on this request, and the plugins on each, with
+their classes. Filter by type or plugin. Magento has no public API for this list, so the
+section reads internals; if a Magento version moves them, the section says so and switches
+itself off rather than break the page.
+
+### Alpine
+
+The page's own Alpine, read live. Four views:
+
+- **Components**: every `x-data` component with its name, where it sits in the page and its
+  state. Point at one to outline it on the page; open it to see its expression and state.
+  **Live** reads the page again every second, **Refresh** once.
+- **Stores**: everything registered with `Alpine.store()`, with its value.
+- **Deferred**: components a Hyvä theme defers with `x-defer`, which have no state until they
+  run. A component that has not started is marked **not started** in both views.
+- **Health**: the Alpine version and build, its prefix and where it was loaded from, the
+  counts, and every expression that threw while Alpine evaluated the page. A binding that
+  throws renders as an empty element and says nothing else, so this is the place to look.
+
+State goes through the value policy before it is shown. A page without Alpine says so.
+
+![The Alpine section listing every component on the page with its state][shot-alpine]
+
+### Magewire
+
+The page's Magewire components, read live. **Components** lists each one with its resolver,
+its properties, listeners and children, and the size of the state it posts back and receives
+on every update; over 20 kB is marked, and a collection on a public property is the usual
+reason. Point at one to outline it, open it to see its state. **Updates** lists each round
+trip once you use a component, timed in the browser, so it includes the network and the
+morph. The profile of the same update, in the request list, is the server's share.
+
+![The Magewire section, with the state each component posts back on every update][shot-magewire]
+
+
+
 ### SEO
 
 Six views, each with a count of what needs a look:
+
+![The SEO overview, with the server's HTML next to the live page][shot-seo]
 
 - **Overview**: the title and meta description with their length, the canonical URL and why
   it differs from this page when it does, the robots meta tag and the `X-Robots-Tag` header,
@@ -152,6 +323,10 @@ Six views, each with a count of what needs a look:
   shop, so on one of those **Copy the markup** puts every block and item on the clipboard to
   paste into the tool's code tab. On a public host the links open the tools on this URL.
 - **Social**: the Open Graph and X card tags, with each required one that is missing.
+
+![Where each SEO value came from, with a link to edit it][shot-seo-sources]
+
+![The Schema view, with each entity checked for a rich result][shot-seo-schema]
 
 Images and Links show only the rows with a problem until you switch **Problems only** off.
 The page is read when it finishes loading and again whenever you open the section; **Refresh**
@@ -222,62 +397,12 @@ names and gtag commands are shown under every policy, because without them the l
 nothing. The pushes of earlier pages are kept in the tab's session storage, already cleaned,
 and not at all under the `none` policy.
 
-### Page cache
-
-Answers "why is this page not cached?" with Magento's own reasons, not a guess. The verdict
-is one of:
-
-- **Served from the full page cache**: the built-in cache answered, so no layout, block or
-  query ran. There are no reasons to show; clean the `full_page` cache and reload to see them.
-- **Stored for the next request**: the page was generated and saved.
-- **Offered to Varnish as cacheable**: on Varnish, PHP never sees a hit, so this is as far as
-  the bar can tell.
-- **Not cached**, with every reason in the order Magento checks them: the `full_page` cache
-  type is off, the method is not GET or HEAD, maintenance mode is on, a block is marked
-  `cacheable="false"`, the status is not 200 or 404, or the response was not offered as public.
-
-A block marked `cacheable="false"` makes the whole page uncacheable, and it is the usual
-cause. The table lists each one that made it into the page, with the layout handle and the
-file that declared it. A block that a layout removed is not listed, because it does not
-stop caching.
-
-The headers are the ones the application handed to the cache. The built-in cache rewrites
-`Cache-Control` once it has stored a page, so the response your browser receives always looks
-uncacheable. `Set-Cookie` lists cookie names only, and is marked when a page that should be
-cached sets one. `X-Magento-Cache-Debug` is only sent in developer mode.
-
-A CMS page, category or product page that was not cached is a finding: a warning, or a note
-when the only reason is that the cache is switched off.
-
-### Layout
-
-Answers "which XML put this on the page?". It lists every layout handle the request loaded,
-in the order Magento merged them, and under each handle the files that define it, with the
-module that ships each file or the theme that overrides it. Filter by a handle name or by
-any part of a file path.
-
-A handle the page did not ask for directly, because a layout file pulled it in with
-`<update handle="..."/>`, is listed after that handle and marked **via** it. A request can
-also generate a layout of its own beside the page's, for prices or an email. Those handles
-come after the page's and are marked **separate layout**.
-
-The file paths are the files the merge read. A theme or module that rewrites layout files
-before the merge shows its rewritten copy.
-
-Each handle with blocks of its own has a button for them. It opens the Blocks section,
-filtered to the blocks that handle put on the page; the filter shows above the list, and
-clicking it clears it. A block counts for the first handle, in merge order, whose files
-declare it, which is the same rule the Page cache section uses to name the handle of an
-uncacheable block. A block that a later file removed is not counted.
-
-The lookup runs after the page has rendered, so it does not distort the block timings,
-but it does read every file of every handle and adds to the request's total time. Turn the
-section off under **Sections** if that matters on a page you are measuring.
-
 ### Web Vitals
 
 LCP, CLS and INP, with TTFB and FCP, each rated **good**, **needs improvement** or **poor**
 against Google's thresholds. The sidebar counts the poor ones.
+
+![Web Vitals rated against Google's thresholds][shot-web-vitals]
 
 - **Largest Contentful Paint element**: the biggest thing drawn before the first input, with
   its image URL when it is one. Point at the row to outline it on the page; click it to
@@ -301,13 +426,15 @@ percentile of real visits, so read these as a way to find the cause, not as the 
 Not every browser measures every metric. One that the browser cannot measure says so
 rather than showing zero; Chrome and Edge measure all five.
 
-Only summaries travel with the page, about 1.5 kB. A section's contents are fetched the
-first time you open it.
+### History
 
-You can switch sections off entirely in the configuration. A section that is off is not
-collected either, so turning off Blocks on a page that renders four hundred of them makes
-the request you are measuring cheaper as well as the panel quieter. Findings and Overview
-are always on.
+**Recent** lists every profile still on disk, newest first: method, path, area, query count,
+findings, status, duration and how long ago. Click one to load it into the bar. **Refresh**
+reads the store again. **Compare** measures the request on screen against an earlier one; see
+[Comparing two requests](#comparing-two-requests).
+
+![The History section listing the profiles still on disk][shot-history]
+
 
 ## Reading findings
 
@@ -358,6 +485,12 @@ structured data types, each with its value before and now.
 "The same query" means the same shape, with values and numbers normalised, so an N+1 built
 from interpolated ids reads as one shape that ran ninety times rather than ninety queries.
 
+The bar shows the result in three tables: the totals before and now, the findings that
+appeared or went away, and the query shapes that were added, removed or now run a different
+number of times. Comparing two different pages is allowed, and says so at the top.
+
+![Compare, measuring the request on screen against an earlier one][shot-compare]
+
 ## Requests that cannot carry a bar
 
 AJAX, GraphQL and REST responses are profiled, but nothing can be injected into them. They
@@ -391,10 +524,19 @@ Or, for anything that speaks MCP over stdio:
 }
 ```
 
-Six read only tools: `list_debug_profiles`, `get_debug_findings`,
-`get_debug_profile_section`, `inspect_debug_queries`, `compare_debug_profiles` and
-`get_debug_seo`. The server
-reads files and never opens a database connection, so it starts in about 0.2 seconds.
+Six read only tools:
+
+| Tool | What it returns |
+| --- | --- |
+| `list_debug_profiles` | Recent requests, newest first; filter by `method`, `path`, `status` or `only_with_findings` |
+| `get_debug_findings` | The findings for one `profile_id`, worst first |
+| `get_debug_profile_section` | One section a page at a time: `request`, `queries`, `events`, `observers`, `blocks`, `cache`, `pagecache`, `layout`, `interception`, `seo` or `timeline`, with `cursor` and `limit` |
+| `inspect_debug_queries` | Queries slowest first with their call sites; `filter` is `all` or `slow` |
+| `compare_debug_profiles` | What changed from `baseline_profile_id` to `subject_profile_id`, SEO facts included |
+| `get_debug_seo` | What the server's HTML told search engines, where each value came from, and the `seo.*` findings |
+
+The server reads files and never opens a database connection, so it starts in about 0.2
+seconds.
 
 Responses are bounded by item count and byte budget. On an 817 kB profile from a category
 page, findings answer in 7 kB and queries in 16 kB.
@@ -446,8 +588,8 @@ bin/magento config:set siteation_debugbar/general/editor_path_map '/var/www/html
 
 ## Debugging a live site
 
-The configuration switch is per store, which on a live site is the wrong shape: it would
-turn the bar on for every visitor. The access key is the per request half.
+The configuration switch covers the whole store, which on a live site is the wrong shape: it
+would turn the bar on for every visitor. The access key is the per request half.
 
 ```
 bin/magento config:set siteation_debugbar/general/access_key "$(openssl rand -hex 32)"
@@ -496,7 +638,10 @@ again.
 
 ## Settings
 
-All under `siteation_debugbar/general/`.
+All under `siteation_debugbar/general/`, shown in the admin under **Stores > Configuration >
+Siteation > Debug Bar**.
+
+![The Debug Bar settings in the admin][shot-admin]
 
 | Setting | Default | |
 | --- | --- | --- |
@@ -544,3 +689,18 @@ and both bounds are enforced on read.
 
 **Findings look wrong after changing a threshold.** Thresholds are read when the profile is
 written, not when it is displayed. Load the page again.
+
+[shot-overview]: ../assets/overview.webp "The bar open on Overview"
+[shot-overview-dark]: ../assets/overview-dark.webp "The bar in the dark theme"
+[shot-findings]: ../assets/findings.webp "Findings"
+[shot-page-cache]: ../assets/page-cache.webp "Page cache"
+[shot-layout]: ../assets/layout.webp "Layout"
+[shot-alpine]: ../assets/alpine.webp "Alpine"
+[shot-magewire]: ../assets/magewire.webp "Magewire"
+[shot-seo]: ../assets/seo.webp "SEO overview, server HTML against the live page"
+[shot-seo-sources]: ../assets/seo-sources.webp "SEO, where each value came from"
+[shot-seo-schema]: ../assets/seo-schema.webp "SEO schema"
+[shot-web-vitals]: ../assets/web-vitals.webp "Web Vitals"
+[shot-history]: ../assets/history.webp "History"
+[shot-compare]: ../assets/compare.webp "Compare"
+[shot-admin]: ../assets/admin-configuration.webp "The Debug Bar settings in the admin"

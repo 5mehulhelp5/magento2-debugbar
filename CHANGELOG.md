@@ -94,6 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A store that already chose which sections to show keeps that list,
   so the SEO, Data layer and Web Vitals sections stay off there until they are added under
   Sections in the configuration.
+- The README and both guides describe every section, sub view and MCP tool as they ship now,
+  with new screenshots ([#26](https://github.com/Siteation/magento2-debugbar/issues/26)).
 
 [Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.2.0...main
 
