@@ -192,6 +192,13 @@ class SeoCollector extends AbstractCollector
         $h1 = array_values(array_filter($headings, static fn (array $h): bool => $h['level'] === 1));
         $root = $document->documentElement;
 
+        // A page served from the full page cache was never routed, so the request has no
+        // action to name it by. Magento writes the action into the body class, and that is
+        // stored with the page, which is what keeps the rules working on a cached page.
+        if ($this->record['page_type'] === null) {
+            $this->record = [...$this->record, ...$this->pageFromBody($xpath)];
+        }
+
         $this->record += [
             'title' => $this->clip($title),
             'title_length' => mb_strlen($title),
@@ -218,6 +225,23 @@ class SeoCollector extends AbstractCollector
             'hreflang' => $alternates,
             'social' => $this->social($xpath),
         ];
+    }
+
+    /**
+     * @return array{action?: string, page_type?: string}
+     */
+    private function pageFromBody(DOMXPath $xpath): array
+    {
+        $body = $this->first($xpath, '//body');
+        $classes = $body === null ? [] : $this->tokens($body->getAttribute('class'));
+
+        foreach (self::PAGE_TYPES as $action => $type) {
+            if (in_array(str_replace('_', '-', $action), $classes, true)) {
+                return ['action' => $action, 'page_type' => $type];
+            }
+        }
+
+        return [];
     }
 
     /**

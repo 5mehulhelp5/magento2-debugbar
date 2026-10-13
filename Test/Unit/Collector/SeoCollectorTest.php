@@ -142,6 +142,23 @@ class SeoCollectorTest extends TestCase
     }
 
     #[Test]
+    public function aPageFromTheFullPageCacheIsNamedByItsBodyClass(): void
+    {
+        // A cache hit is never routed, so the request's action is Magento's "__".
+        $summary = $this->collect(
+            '<html><head><title>Home</title></head><body class="cms-index-index page-layout-1column">'
+            . '<h1>Home</h1></body></html>',
+            action: '__'
+        )->summary();
+        $unknown = $this->collect('<html><body class="customer-account-index"></body></html>', action: '__')
+            ->summary();
+
+        $this->assertSame('cms', $summary['page_type']);
+        $this->assertSame('cms_index_index', $summary['action']);
+        $this->assertNull($unknown['page_type'], 'a page the rules are not about stays unnamed');
+    }
+
+    #[Test]
     public function nothingIsReadOutsideAStorefrontPage(): void
     {
         $admin = $this->collect(self::PAGE, area: 'adminhtml')->summary();
@@ -181,10 +198,11 @@ class SeoCollectorTest extends TestCase
         string $body,
         string $area = 'frontend',
         string $contentType = 'text/html; charset=UTF-8',
-        string $robotsHeader = ''
+        string $robotsHeader = '',
+        string $action = 'catalog_category_view'
     ): SeoCollector {
         $request = $this->createStub(HttpRequest::class);
-        $request->method('getFullActionName')->willReturn('catalog_category_view');
+        $request->method('getFullActionName')->willReturn($action);
 
         $state = $this->createStub(State::class);
         $state->method('getAreaCode')->willReturn($area);
