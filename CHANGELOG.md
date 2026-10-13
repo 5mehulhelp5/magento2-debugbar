@@ -101,6 +101,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#31](https://github.com/Siteation/magento2-debugbar/issues/31)). Loads and saves
   already worked this way.
 
+- A row past a section's 500-row cap is counted without being redacted first
+  ([#33](https://github.com/Siteation/magento2-debugbar/issues/33)). It was redacted in
+  full and then thrown away, so a page with thousands of queries paid for each one.
+
 - In the admin, the bar's sections, History and Compare said "Could not load profile details:
   The response was not JSON". Its requests went to admin addresses that had no controller,
   so the admin answered with its 404 page. Those addresses now answer.

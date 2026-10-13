@@ -42,6 +42,13 @@ abstract class AbstractCollector implements CollectorInterface
 
     public function record(array $item): void
     {
+        // A row past the cap is only counted, never stored, so it is not worth redacting.
+        if ($this->atCapacity(count($this->items))) {
+            $this->track($item);
+
+            return;
+        }
+
         /** @var array<string, mixed> $safe */
         $safe = $this->redactor->clean($item);
 
@@ -50,10 +57,6 @@ abstract class AbstractCollector implements CollectorInterface
         $safe['at_ms'] ??= $this->clock->elapsedMs();
 
         $this->track($safe);
-
-        if ($this->atCapacity(count($this->items))) {
-            return;
-        }
 
         $this->items[] = $safe;
     }
@@ -108,6 +111,9 @@ abstract class AbstractCollector implements CollectorInterface
     }
 
     /**
+     * Fold a row into the totals. Rows past the cap arrive here unredacted, so read numbers
+     * from them and never store them.
+     *
      * @param array<string, mixed> $item
      */
     protected function track(array $item): void
