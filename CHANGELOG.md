@@ -91,6 +91,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- In the admin, the bar no longer stores a profile of its own requests
+  ([#30](https://github.com/Siteation/magento2-debugbar/issues/30)). Opening a profile,
+  the history or a comparison used to save one more profile each time and push the real
+  ones out of the twenty kept.
+
 - In the admin, the bar's sections, History and Compare said "Could not load profile details:
   The response was not JSON". Its requests went to admin addresses that had no controller,
   so the admin answered with its 404 page. Those addresses now answer.

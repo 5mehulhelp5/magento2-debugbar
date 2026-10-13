@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Siteation\DebugBar\Model;
 
+use Magento\Framework\App\Area;
 use Magento\Framework\App\AreaList;
 use Magento\Framework\App\Request\Http as HttpRequest;
 
@@ -78,10 +79,19 @@ class RequestEligibility
         return $this->client->get();
     }
 
+    /**
+     * The route is the first segment of the path, except in the admin, where the admin front
+     * name comes first. Only that one segment is compared: a page whose URL merely mentions
+     * the front name further along is somebody else's page and still worth profiling.
+     */
     private function isOwnRequest(): bool
     {
-        $path = trim((string) $this->request->getPathInfo(), '/');
+        $segments = explode('/', trim((string) $this->request->getPathInfo(), '/'));
 
-        return $path === self::FRONT_NAME || str_starts_with($path, self::FRONT_NAME . '/');
+        if ($this->area() === Area::AREA_ADMINHTML) {
+            array_shift($segments);
+        }
+
+        return ($segments[0] ?? '') === self::FRONT_NAME;
     }
 }

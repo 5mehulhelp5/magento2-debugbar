@@ -63,12 +63,37 @@ class RequestEligibilityTest extends TestCase
         $this->assertTrue($eligibility->allowsRead());
     }
 
+    #[Test]
+    public function theBarDoesNotProfileItsOwnEndpointsInTheAdminEither(): void
+    {
+        // In the admin the route follows the admin front name, so a prefix check on the path
+        // never matched there and every click in the bar pushed a real profile out.
+        $eligibility = $this->eligibility(
+            path: '/secret_admin/siteation_debugbar/profile/view/id/x/',
+            areaCode: 'adminhtml'
+        );
+
+        $this->assertFalse($eligibility->allows(), 'Reading a profile would evict real ones.');
+        $this->assertTrue($eligibility->allowsRead());
+    }
+
+    #[Test]
+    public function aPageThatOnlyMentionsTheFrontNameLaterIsStillProfiled(): void
+    {
+        $this->assertTrue($this->eligibility(
+            path: '/secret_admin/catalog/product/edit/id/siteation_debugbar/',
+            areaCode: 'adminhtml'
+        )->allows());
+        $this->assertTrue($this->eligibility(path: '/catalog/siteation_debugbar/')->allows());
+    }
+
     private function eligibility(
         bool $enabled = true,
         bool $ip = true,
         bool $area = true,
         bool $key = true,
-        string $path = '/checkout/cart/'
+        string $path = '/checkout/cart/',
+        string $areaCode = 'frontend'
     ): RequestEligibility {
         $config = $this->createStub(Config::class);
         $config->method('isEnabled')->willReturn($enabled);
@@ -77,8 +102,12 @@ class RequestEligibilityTest extends TestCase
 
         $request = $this->createStub(HttpRequest::class);
         $request->method('getPathInfo')->willReturn($path);
-        $request->method('getFrontName')->willReturn(trim($path, '/'));
+        // As Http::getFrontName() does: the first segment of the path.
+        $request->method('getFrontName')->willReturn(explode('/', trim($path, '/'))[0]);
         $request->method('getServer')->willReturn('127.0.0.1');
+
+        $areaList = $this->createStub(AreaList::class);
+        $areaList->method('getCodeByFrontName')->willReturn($areaCode);
 
         $accessKey = $this->createStub(AccessKey::class);
         $accessKey->method('allows')->willReturn($key);
@@ -86,7 +115,7 @@ class RequestEligibilityTest extends TestCase
         return new RequestEligibility(
             $config,
             $request,
-            $this->createStub(AreaList::class),
+            $areaList,
             $accessKey,
             new ClientAddress($request)
         );
