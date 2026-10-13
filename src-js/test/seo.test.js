@@ -23,6 +23,7 @@ import {
   overview,
   quickLinks,
   robots,
+  serverVersusLive,
   social,
   wordCount,
 } from '../src/seo.js'
@@ -324,4 +325,69 @@ test('the empty model has every key the panel reads', () => {
     : Array.isArray(value) ? 'array' : typeof value)
 
   assert.deepEqual(shape(empty), shape(model))
+})
+
+/**
+ * What SeoCollector would have kept for a page, with the defaults of a well formed one.
+ *
+ * @param {object} [values]
+ * @returns {object}
+ */
+function serverRecord(values = {}) {
+  return {
+    title: "Women's tops, shirts and blouses for every season",
+    description: 'Tops, shirts and blouses in cotton and linen, with free returns on every order over fifty euros.',
+    canonical: URL_HERE,
+    robots: '',
+    lang: 'en',
+    h1: 'Tops',
+    h1_count: 1,
+    heading_count: 1,
+    json_ld_count: 0,
+    ...values,
+  }
+}
+
+test('a page no script changed matches what the server sent', () => {
+  const { model } = inspectPage(page(HEAD, '<h1>Tops</h1>'), { url: URL_HERE, env: env() })
+  const result = serverVersusLive(serverRecord(), model)
+
+  assert.equal(result.available, true)
+  assert.equal(result.changed, 0)
+  assert.deepEqual(result.rows.map((row) => row.key),
+    ['title', 'description', 'canonical', 'robots', 'lang', 'h1', 'h1_count', 'heading_count', 'json_ld_count'])
+})
+
+test('what a script changed after load is named, with both sides', () => {
+  const live = page(
+    `${HEAD}<meta name="robots" content="noindex"><script type="application/ld+json">{"@type":"Product"}</script>`,
+    '<h1>Tops</h1><h1>Sale</h1>'
+  )
+  const { model } = inspectPage(live, { url: URL_HERE, env: env() })
+  const result = serverVersusLive(serverRecord(), model)
+  const changed = result.rows.filter((row) => row.changed)
+
+  assert.deepEqual(changed.map((row) => row.key), ['robots', 'h1_count', 'heading_count', 'json_ld_count'])
+  assert.deepEqual(changed[0], { key: 'robots', label: 'Robots meta', server: '', live: 'noindex', changed: true })
+  assert.equal(result.changed, 4)
+})
+
+test('a title cut at a different length on each side is still the same title', () => {
+  const long = 'Tops '.repeat(70).trim()
+  const { model } = inspectPage(page(`<title>${long}</title>`, '<h1>Tops</h1>'), { url: URL_HERE, env: env() })
+  const server = serverRecord({ title: `${long.slice(0, 300)}...` })
+  const row = serverVersusLive(server, model).rows.find((item) => item.key === 'title')
+
+  assert.equal(row.changed, false, 'the server keeps 300 characters and the bar 160')
+})
+
+test('a page with no server record says why there is nothing to compare', () => {
+  const { model } = inspectPage(page(HEAD), { url: URL_HERE, env: env() })
+
+  assert.equal(serverVersusLive(undefined, model).available, false)
+  assert.equal(serverVersusLive({}, model).available, false)
+
+  const skipped = serverVersusLive({ skipped: 'too_large' }, model)
+  assert.equal(skipped.available, false)
+  assert.match(skipped.reason, /too large/)
 })

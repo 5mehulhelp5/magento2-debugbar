@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_debug_seo`, returns the facts and the findings together, and the markdown report has
   an SEO table. A finding opens the SEO view that shows the same thing on the live page.
 
+- The **SEO server half**, second part
+  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10)):
+  the SEO overview puts the HTML the server sent next to the live page and marks what a
+  script changed after load, which a crawler that does not run JavaScript never sees.
+  Compare, the markdown report and `compare_debug_profiles` list the SEO facts that differ
+  between two requests.
+
 - A **Layout** section
   ([#9](https://github.com/Siteation/magento2-debugbar/issues/9)):
   the layout handles the request loaded, in the order Magento merged them, with the XML

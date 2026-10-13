@@ -37,7 +37,8 @@ Ask for small limits. Start with 10 profiles, 10 findings, 5 items. Increase or 
 
 `compare_debug_profiles` takes two profile ids and reports what moved between them:
 duration, memory, queries, cache and findings, with query shapes matched by fingerprint so
-a repeated query that went away is visible as such.
+a repeated query that went away is visible as such. Its `seo` key lists the SEO facts the
+server sent that differ, each with both values, or says why one side has no SEO record.
 
 Profile the page, make the change, load the page again, then compare. Two ids and one call
 is a stronger answer than reading two profiles side by side, and it is the only way to say

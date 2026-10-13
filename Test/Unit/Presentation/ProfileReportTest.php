@@ -142,6 +142,21 @@ class ProfileReportTest extends TestCase
     }
 
     #[Test]
+    public function aChangedSeoFactIsListedWithBothSides(): void
+    {
+        $baseline = $this->profile('11111111-1111-4111-8111-111111111111');
+        $baseline['sections']['seo'] = ['summary' => ['title' => 'Bikes', 'noindex' => false, 'canonical' => '']];
+        $subject = $this->profile('22222222-2222-4222-8222-222222222222');
+        $subject['sections']['seo'] = ['summary' => ['title' => 'Bikes | Shop', 'noindex' => true, 'canonical' => '']];
+
+        $markdown = $this->report()->render($subject, $baseline);
+
+        $this->assertStringContainsString('SEO: 2 changed, 1 the same.', $markdown);
+        $this->assertStringContainsString('- Title: Bikes to Bikes \\| Shop', $markdown);
+        $this->assertStringContainsString('- Noindex: no to yes', $markdown);
+    }
+
+    #[Test]
     public function aResponseWithNoPageHasNoSeoBlock(): void
     {
         $profile = $this->profile();

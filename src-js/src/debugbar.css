@@ -1832,6 +1832,9 @@
 
 .ndb-compare td { vertical-align: middle; }
 
+/* A row label breaks between words only: the values beside it take the width. */
+.ndb-table td.ndb-fact { overflow-wrap: normal; }
+
 .ndb-delta {
   font-weight: 700;
   font-variant-numeric: tabular-nums;

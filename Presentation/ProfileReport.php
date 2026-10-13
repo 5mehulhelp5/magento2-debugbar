@@ -329,6 +329,24 @@ class ProfileReport
             $lines[] = '- Resolved: ' . ($finding['message'] ?? '');
         }
 
+        if ($diff['seo']['available']) {
+            $lines[] = '';
+            $lines[] = sprintf(
+                'SEO: %d changed, %d the same.',
+                count($diff['seo']['changed']),
+                $diff['seo']['unchanged']
+            );
+
+            foreach ($diff['seo']['changed'] as $row) {
+                $lines[] = sprintf(
+                    '- %s: %s to %s',
+                    $row['label'],
+                    $row['baseline'] === '' ? 'none' : $this->cell($row['baseline']),
+                    $row['subject'] === '' ? 'none' : $this->cell($row['subject'])
+                );
+            }
+        }
+
         $queries = $diff['queries'];
 
         $lines[] = '';

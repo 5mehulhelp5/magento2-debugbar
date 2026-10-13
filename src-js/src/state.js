@@ -45,7 +45,7 @@ import {
   reveal as revealSeo,
   structuredMarkup,
 } from './seo-page.js'
-import { emptyModel as emptySeo } from './seo.js'
+import { emptyModel as emptySeo, serverVersusLive } from './seo.js'
 import { emptyDataLayer, readDataLayer, watchPushes } from './datalayer-page.js'
 import {
   emptyVitals,
@@ -1528,6 +1528,14 @@ export function debugBar() {
      */
     highlightMagewire(id, on) {
       outlineMagewire(id, on)
+    },
+
+    /**
+     * What the server sent for this document against the page as it is now. The page's own
+     * profile, never the one in view: only that request sent this HTML.
+     */
+    get seoServer() {
+      return serverVersusLive(this.pageProfile.sections?.seo?.summary, this.seo)
     },
 
     /**

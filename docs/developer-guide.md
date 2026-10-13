@@ -173,7 +173,11 @@ found out of the bar's reactive state, and draws and removes the outlines. A new
 HTML told search engines. Its checks mirror the ones in `seo.js` where both read the same tag,
 so a canonical found by one is found by the other: `rel` is a token list matched without
 case, and headings inside a `<template>` do not count. The SEO rules read only its summary,
-which is embedded in every page, so anything long goes in the payload.
+which is embedded in every page, so anything long goes in the payload. `serverVersusLive()`
+in `seo.js` compares that summary with the live reading, so a value both sides cut (the server
+keeps 300 characters, the bar 160) is compared up to the shorter cut. `ProfileComparer` lists
+the summary fields that differ between two profiles, already formatted, so the bar, the
+report and MCP print the same values.
 
 `schema.js` is the Schema view: it reads JSON-LD and microdata into one entity shape and
 checks them against `RICH_RESULT_RULES`, one table of required and recommended properties per
@@ -217,10 +221,10 @@ for out of the response rather than pushing it over.
 ```
 vendor/bin/phpcs  --standard=<pkg>/phpcs.xml.dist <pkg>
 vendor/bin/phpstan analyse -c <pkg>/phpstan.neon.dist
-vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 268 tests
+vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 271 tests
 <pkg>/dev/smoke https://your-store.test admin                  # 31 assertions over HTTP
-cd <pkg>/src-js && npm test                                    # 159, no store needed
-cd <pkg>/src-js && npm run test:browser                        # 27, needs the store up
+cd <pkg>/src-js && npm test                                    # 163, no store needed
+cd <pkg>/src-js && npm run test:browser                        # 28, needs the store up
 ```
 
 **The supported PHP range is checked separately**, because `phpstan.neon.dist` has to keep
