@@ -142,6 +142,48 @@ class ProfileComparerTest extends TestCase
         $this->assertSame(30, $result['queries']['added'][0]['count'], 'Worst first.');
     }
 
+    #[Test]
+    public function itListsOnlyTheSeoFactsThatChanged(): void
+    {
+        $seo = [
+            'title' => 'Joust Duffle Bag', 'canonical' => 'https://shop.test/joust.html',
+            'noindex' => false, 'schema_types' => ['Product'], 'h1_count' => 1,
+        ];
+        $result = $this->comparer->compare(
+            $this->profile(['seo' => $seo]),
+            $this->profile(['seo' => [
+                ...$seo,
+                'title' => 'Joust Duffle Bag | Shop',
+                'noindex' => true,
+                'schema_types' => ['Product', 'BreadcrumbList'],
+            ]])
+        );
+
+        $this->assertTrue($result['seo']['available']);
+        $this->assertSame(['title', 'noindex', 'schema_types'], array_column($result['seo']['changed'], 'key'));
+        $this->assertSame(
+            ['key' => 'noindex', 'label' => 'Noindex', 'baseline' => 'no', 'subject' => 'yes'],
+            $result['seo']['changed'][1]
+        );
+        $this->assertSame('Product, BreadcrumbList', $result['seo']['changed'][2]['subject']);
+        $this->assertSame(2, $result['seo']['unchanged'], 'The canonical and the H1 count did not move.');
+    }
+
+    #[Test]
+    public function itSaysWhySeoCannotBeCompared(): void
+    {
+        $page = $this->profile(['seo' => ['title' => 'Home']]);
+
+        $missing = $this->comparer->compare($this->profile(), $page)['seo'];
+        $this->assertFalse($missing['available']);
+        $this->assertSame([], $missing['changed']);
+        $this->assertStringContainsString('before', $missing['reason']);
+
+        $skipped = $this->comparer->compare($page, $this->profile(['seo' => ['skipped' => 'not_html']]))['seo'];
+        $this->assertFalse($skipped['available'], 'A response that was not a page has no SEO to compare.');
+        $this->assertStringContainsString('now', $skipped['reason']);
+    }
+
     /**
      * @param array<string, mixed> $result
      * @return array<string, mixed>
@@ -178,6 +220,7 @@ class ProfileComparerTest extends TestCase
                 ],
                 'events' => ['summary' => ['count' => $values['events'] ?? 0]],
                 'cache' => ['summary' => ['hit_rate' => $values['hit_rate'] ?? null]],
+                ...(isset($values['seo']) ? ['seo' => ['summary' => $values['seo']]] : []),
             ],
         ];
     }

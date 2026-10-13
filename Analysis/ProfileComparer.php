@@ -55,6 +55,30 @@ class ProfileComparer
             'unit' => 'B', 'better' => self::BETTER_LOWER, 'decimals' => 0],
     ];
 
+    /**
+     * The SEO facts SeoCollector keeps, in the order a reader checks them. Lengths are left
+     * out: a changed title already says its length changed.
+     *
+     * @var array<string, string>
+     */
+    private const SEO_FIELDS = [
+        'title' => 'Title',
+        'description' => 'Meta description',
+        'canonical' => 'Canonical',
+        'canonical_count' => 'Canonical tags',
+        'robots' => 'Robots meta',
+        'robots_header' => 'X-Robots-Tag',
+        'noindex' => 'Noindex',
+        'nofollow' => 'Nofollow',
+        'lang' => 'Language',
+        'h1' => 'H1',
+        'h1_count' => 'H1 count',
+        'heading_count' => 'Headings',
+        'hreflang_count' => 'Hreflang alternates',
+        'schema_types' => 'Structured data types',
+        'json_ld_invalid' => 'Unreadable JSON-LD blocks',
+    ];
+
     public function __construct(
         private readonly QueryAnalyzer $queries,
         private readonly ProfileSummary $summary
@@ -76,7 +100,84 @@ class ProfileComparer
             'metrics' => $this->metrics($baseline, $subject),
             'findings' => $this->findings($baseline, $subject),
             'queries' => $this->queryShapes($baseline, $subject),
+            'seo' => $this->seo($baseline, $subject),
         ];
+    }
+
+    /**
+     * What the page told search engines, before and after. Only the facts that moved are
+     * listed, since a reader opening Compare after an SEO change wants that change, not
+     * fifteen rows that say the same thing twice.
+     *
+     * @param array<string, mixed> $baseline
+     * @param array<string, mixed> $subject
+     * @return array{available: bool, reason: string, changed: list<array<string, string>>, unchanged: int}
+     */
+    private function seo(array $baseline, array $subject): array
+    {
+        $was = $this->seoSummary($baseline);
+        $now = $this->seoSummary($subject);
+        $missing = array_keys(array_filter(['before' => $was, 'now' => $now], 'is_null'));
+
+        if ($missing !== []) {
+            return [
+                'available' => false,
+                // Both requests can be pages with no SEO record: an API call, a redirect,
+                // or a profile from before the collector existed.
+                'reason' => sprintf('No SEO record for the request %s.', implode(' or ', $missing)),
+                'changed' => [],
+                'unchanged' => 0,
+            ];
+        }
+
+        $changed = [];
+        $unchanged = 0;
+
+        foreach (self::SEO_FIELDS as $key => $label) {
+            if (!array_key_exists($key, $was) && !array_key_exists($key, $now)) {
+                continue;
+            }
+
+            $before = $this->seoValue($was[$key] ?? null);
+            $after = $this->seoValue($now[$key] ?? null);
+
+            if ($before === $after) {
+                $unchanged++;
+                continue;
+            }
+
+            $changed[] = ['key' => $key, 'label' => $label, 'baseline' => $before, 'subject' => $after];
+        }
+
+        return ['available' => true, 'reason' => '', 'changed' => $changed, 'unchanged' => $unchanged];
+    }
+
+    /**
+     * @param array<string, mixed> $profile
+     * @return array<string, mixed>|null null when the request kept no SEO facts
+     */
+    private function seoSummary(array $profile): ?array
+    {
+        $summary = $profile['sections']['seo']['summary'] ?? null;
+
+        if (!is_array($summary) || isset($summary['skipped'])) {
+            return null;
+        }
+
+        return $summary;
+    }
+
+    /**
+     * One display string per value, so the bar, the report and MCP all print the same thing.
+     */
+    private function seoValue(mixed $value): string
+    {
+        return match (true) {
+            is_bool($value) => $value ? 'yes' : 'no',
+            is_array($value) => implode(', ', array_map('strval', $value)),
+            is_scalar($value) => (string) $value,
+            default => '',
+        };
     }
 
     /**

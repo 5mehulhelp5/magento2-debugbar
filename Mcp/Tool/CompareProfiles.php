@@ -22,7 +22,9 @@ class CompareProfiles implements McpToolInterface
     {
         return 'Compare two profiled requests and report what changed: duration, memory, '
             . 'queries, cache, findings that appeared or went away, and which query shapes '
-            . 'were added, removed or now run a different number of times. Use this after '
+            . 'were added, removed or now run a different number of times, and the SEO facts '
+            . 'the server sent that differ (title, canonical, robots, H1, structured data). '
+            . 'Use this after '
             . 'changing code to measure what the change cost, with a before profile and an '
             . 'after profile of the same page.';
     }
