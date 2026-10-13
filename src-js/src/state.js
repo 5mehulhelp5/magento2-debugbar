@@ -1539,6 +1539,25 @@ export function debugBar() {
     },
 
     /**
+     * Where the server got each value: the attribute, CMS field or setting, with a link to
+     * edit it. Only for this page, whose payload is the one loaded while it is in view.
+     *
+     * @returns {Array<object>}
+     */
+    get seoSources() {
+      if (!this.pageProfile.id || this.profile.id !== this.pageProfile.id) return []
+
+      return this.payloads.seo?.sources || this.profile.sections?.seo?.payload?.sources || []
+    },
+
+    /** @returns {boolean} a page the server would have sources for, with none recorded */
+    get seoSourcesMissing() {
+      const type = this.pageProfile.sections?.seo?.summary?.page_type
+
+      return Boolean(type) && !this.loading && this.seoSources.length === 0
+    },
+
+    /**
      * Read once the page has loaded, so images have their real sizes and the sidebar count
      * is there before the section is opened. Opening it reads again, since a page changes.
      */
