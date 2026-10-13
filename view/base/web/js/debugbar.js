@@ -10005,7 +10005,7 @@ const Fh = `
                       <small class="ndb-dim ndb-source-key" data-ndb-show="row.matches === false"
                              data-ndb-text="'Magento would give: ' + (row.expected || 'nothing')"></small>
                     </td>
-                    <td>
+                    <td class="ndb-action">
                       <a class="ndb-chip" data-ndb-show="row.edit" data-ndb-bind:href="row.edit"
                          target="_blank" rel="noopener">Edit</a>
                     </td>
