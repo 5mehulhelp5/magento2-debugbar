@@ -121,7 +121,10 @@ Six views, each with a count of what needs a look:
   it differs from this page when it does, the robots meta tag and the `X-Robots-Tag` header,
   every hreflang alternate, the language, viewport, charset and word count. Below that, links
   to robots.txt, sitemap.xml and PageSpeed Insights, and on a product, category or CMS page,
-  **Edit this page in the admin**.
+  **Edit this page in the admin**. **Server HTML against the live page** puts what the
+  server sent next to what the page holds now, and marks each value a script changed: the
+  title, description, canonical, robots, language, H1 and heading counts, and the number of
+  JSON-LD blocks. A crawler that does not run JavaScript only gets the server's side.
 - **Headings**: H1 to H6 as an outline, with a missing or second H1, a skipped level, an empty
   heading and a hidden one flagged. Hover a row to outline the heading on the page; click it to
   scroll there.
@@ -339,7 +342,9 @@ Two habits worth keeping:
 
 The History section's Compare tab answers "what did my change cost". Profile a page, make
 the change, load it again, and compare the two profiles: duration, memory, queries, cache
-and findings, plus the query shapes that were added or removed.
+and findings, plus the query shapes that were added or removed. On a storefront page it also
+lists the SEO facts the server sent that changed, such as the title, canonical, robots or
+structured data types, each with its value before and now.
 
 "The same query" means the same shape, with values and numbers normalised, so an N+1 built
 from interpolated ids reads as one shape that ran ninety times rather than ninety queries.
