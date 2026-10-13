@@ -8,12 +8,16 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  KEPT_INTERACTIONS,
+  KEPT_SHIFT_WINDOWS,
   THRESHOLDS,
+  countInteractions,
   display,
   elementLabel,
   emptyVitals,
   inspectVitals,
   rate,
+  trimEntries,
 } from '../src/vitals.js'
 
 const ALL_TYPES = ['largest-contentful-paint', 'layout-shift', 'event', 'paint', 'navigation']
@@ -249,4 +253,199 @@ test('the empty model has every metric, unrated', () => {
   assert.deepEqual(model.metrics.map((item) => item.id), ['lcp', 'cls', 'inp', 'fcp', 'ttfb'])
   assert.ok(model.metrics.every((item) => item.rating === '' && item.value === null))
   assert.equal(model.poorCount, 0)
+})
+
+/**
+ * A page left open: the entries arrive in batches, and after each batch the panel is read
+ * and the lists trimmed, the way vitals-page.js does it.
+ *
+ * @param {Array<Record<string, Array<object>>>} batches
+ * @param {{interactionCount?: number, own?: (node: object) => boolean}} options
+ * @returns {{model: object, entries: Record<string, Array<object>>}}
+ */
+function leftOpen(batches, { interactionCount = 0, own = () => false } = {}) {
+  const entries = {}
+  const interactions = { seen: new Set(), measured: new Set() }
+  const windowNumbers = new WeakMap()
+  let model = null
+
+  batches.forEach((batch) => {
+    Object.entries(batch).forEach(([type, list]) => {
+      entries[type] = [...(entries[type] || []), ...list]
+    })
+
+    countInteractions(entries.event || [], own, interactions)
+    model = inspect(entries, {
+      own,
+      interactionCount,
+      interactions: { seen: interactions.seen.size, measured: interactions.measured.size },
+      windowNumbers,
+    }).model
+    Object.assign(entries, trimEntries(entries, own, { interactionCount, measured: interactions.measured.size }))
+  })
+
+  return { model, entries }
+}
+
+/**
+ * The same entries, every one kept, read once at the end.
+ *
+ * @param {Array<Record<string, Array<object>>>} batches
+ * @param {object} extra
+ * @returns {object}
+ */
+function readOnce(batches, extra = {}) {
+  const entries = {}
+
+  batches.forEach((batch) => {
+    Object.entries(batch).forEach(([type, list]) => {
+      entries[type] = [...(entries[type] || []), ...list]
+    })
+  })
+
+  return inspect(entries, extra).model
+}
+
+/**
+ * The parts of a model a trim could change: the INP and CLS readings and the shifts listed.
+ *
+ * @param {object} model
+ * @returns {object}
+ */
+function reading(model) {
+  return {
+    metrics: model.metrics.map(({ id, value, display: shown, rating }) => ({ id, value, shown, rating })),
+    lcp: model.lcp && { label: model.lcp.label, url: model.lcp.url, size: model.lcp.size },
+    inp: {
+      count: model.inp.count,
+      unseen: model.inp.unseen,
+      interaction: model.inp.interaction && {
+        name: model.inp.interaction.name,
+        at: model.inp.interaction.at,
+        label: model.inp.interaction.label,
+      },
+    },
+  }
+}
+
+/**
+ * A long session: interactions with two entries each, some on the bar, layout shifts in
+ * windows a few seconds apart, and an LCP candidate now and then. Durations and shift values
+ * vary without ties, so which interaction or window is the worst is never a coin toss.
+ *
+ * @param {number} count batches of ten interactions and ten shifts
+ * @param {object} host the bar
+ * @returns {Array<Record<string, Array<object>>>}
+ */
+function session(count, host) {
+  const button = element('button', { id: 'add' })
+  const batches = []
+  let id = 0
+
+  for (let batch = 0; batch < count; batch++) {
+    const event = []
+    const shifts = []
+    const at = batch * 20000
+
+    for (let i = 0; i < 10; i++) {
+      id += 7
+      // Every thirteenth interaction is with the bar, and slow, as clicks on it can be.
+      const target = id % 13 === 0 ? host : button
+      const duration = ((id * 7919) % 997) + 16 + (target === host ? 2000 : 0)
+
+      event.push(
+        { name: 'pointerdown', interactionId: id, duration: duration / 2, startTime: at + i * 100, target },
+        { name: 'click', interactionId: id, duration, startTime: at + i * 100, target },
+      )
+      // Two shifts per window, windows two seconds apart.
+      shifts.push({
+        value: (((batch * 10 + i) * 104729) % 1009) / 100000,
+        startTime: at + Math.floor(i / 2) * 2000 + (i % 2) * 300,
+        hadRecentInput: i === 9,
+        sources: [{ node: element('div', { id: `card-${batch}-${i}` }) }],
+      })
+    }
+
+    batches.push({
+      event,
+      'layout-shift': shifts,
+      ...(batch % 50 === 0 ? { 'largest-contentful-paint': [{ startTime: 900 + batch, element: element('img'), url: `/hero-${batch}.jpg`, size: batch + 1 }] } : {}),
+    })
+  }
+
+  return batches
+}
+
+test('a page left open shows what it would have shown had every entry been kept', () => {
+  const host = element('siteation-debugbar')
+  const own = (node) => node === host
+  const batches = session(400, host)
+
+  for (const interactionCount of [0, 4100]) {
+    const trimmed = leftOpen(batches, { own, interactionCount })
+    const everything = readOnce(batches, { own, interactionCount })
+
+    assert.deepEqual(reading(trimmed.model), reading(everything), `interactionCount ${interactionCount}`)
+  }
+})
+
+test('a page left open keeps the worst layout shift window and its number', () => {
+  const host = element('siteation-debugbar')
+  const batches = session(400, host)
+  const trimmed = leftOpen(batches, { own: (node) => node === host }).model
+  const everything = readOnce(batches, { own: (node) => node === host })
+  const key = (shift) => `${shift.at} ${shift.window} ${shift.worst}`
+  const all = new Set(everything.shifts.map(key))
+
+  // Every shift still listed is listed as it was, window number included.
+  assert.ok(trimmed.shifts.length < everything.shifts.length)
+  trimmed.shifts.forEach((shift) => assert.ok(all.has(key(shift)), key(shift)))
+  assert.deepEqual(
+    trimmed.shifts.filter((shift) => shift.worst).map(key),
+    everything.shifts.filter((shift) => shift.worst).map(key)
+  )
+})
+
+test('a page left open stops growing', () => {
+  const host = element('siteation-debugbar')
+  const own = (node) => node === host
+  const { entries } = leftOpen(session(400, host), { own, interactionCount: 4100 })
+  const interactions = new Set(entries.event.map((entry) => entry.interactionId))
+  const own_ = entries.event.filter((entry) => own(entry.target))
+
+  // 4000 interactions in, 4100 counted: the 98th percentile is the 83rd slowest, within
+  // the hundred that are always kept.
+  assert.equal(interactions.size, KEPT_INTERACTIONS)
+  assert.equal(entries.event.length, interactions.size, 'one entry per interaction, its slowest')
+  assert.deepEqual(own_, [], 'the bar\'s own interactions are counted, not kept')
+  // Two shifts to a window, and the last of every ten is after an input and never counted.
+  assert.ok(entries['layout-shift'].length <= KEPT_SHIFT_WINDOWS * 2)
+  assert.ok(entries['layout-shift'].every((shift) => !shift.hadRecentInput))
+  assert.equal(entries['largest-contentful-paint'].length, 1)
+  assert.equal(entries['largest-contentful-paint'][0].url, '/hero-350.jpg')
+})
+
+test('the slowest interactions are the ones kept, and more once the percentile reaches past them', () => {
+  const button = element('button')
+  const event = Array.from({ length: 300 }, (_, i) => ({
+    name: 'click', interactionId: (i + 1) * 7, duration: 20 + i, startTime: i * 100, target: button,
+  }))
+
+  const quiet = trimEntries({ event }, () => false, { interactionCount: 300, measured: 300 })
+  const busy = trimEntries({ event }, () => false, { interactionCount: 6000, measured: 300 })
+
+  assert.equal(quiet.event.length, KEPT_INTERACTIONS)
+  assert.equal(Math.min(...quiet.event.map((entry) => entry.duration)), 20 + 300 - KEPT_INTERACTIONS)
+  // 6000 interactions put the 98th percentile 121st from the slowest.
+  assert.equal(busy.event.length, 121)
+})
+
+test('trimming leaves the lists it has nothing to do with alone', () => {
+  const paint = [{ name: 'first-contentful-paint', startTime: 800 }]
+  const navigation = [{ responseStart: 120 }]
+
+  const trimmed = trimEntries({ paint, navigation }, () => false)
+
+  assert.equal(trimmed.paint, paint)
+  assert.equal(trimmed.navigation, navigation)
 })

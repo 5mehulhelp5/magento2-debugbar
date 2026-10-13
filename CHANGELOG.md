@@ -122,6 +122,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The response was not JSON". Its requests went to admin addresses that had no controller,
   so the admin answered with its 404 page. Those addresses now answer.
 
+- **Web Vitals no longer keeps every entry on a page left open**
+  ([#35](https://github.com/Siteation/magento2-debugbar/issues/35)). It kept every
+  interaction and layout shift for as long as the page was open, each with the element it
+  was about. Each read now trims them to what the vitals need: the last LCP candidate, the
+  slowest hundred interactions (more on a page used enough for INP to reach further), and
+  the worst layout shift window with the latest ones. The numbers shown do not change: INP
+  is exact up to 5000 interactions on one page, the interaction count still counts every
+  one, and a shift window keeps its number.
+
 ### Changed
 
 - Each distinct SQL statement is normalised once per request instead of five times
