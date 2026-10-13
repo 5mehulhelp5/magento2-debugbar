@@ -30,6 +30,7 @@ class Sections implements OptionSourceInterface
             ['value' => 'observers', 'label' => __('Observers')->render()],
             ['value' => 'events', 'label' => __('Events')->render()],
             ['value' => 'cache', 'label' => __('Cache')->render()],
+            ['value' => 'pagecache', 'label' => __('Page cache')->render()],
             ['value' => 'plugins', 'label' => __('Plugins')->render()],
             ['value' => 'alpine', 'label' => __('Alpine')->render()],
             ['value' => 'magewire', 'label' => __('Magewire')->render()],

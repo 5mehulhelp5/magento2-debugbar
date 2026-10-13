@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Siteation\DebugBar\Analysis\QueryAnalyzer;
 use Siteation\DebugBar\Analysis\Rule\CacheMissRule;
+use Siteation\DebugBar\Analysis\Rule\PageNotCachedRule;
 use Siteation\DebugBar\Analysis\Rule\RepeatedQueryRule;
 use Siteation\DebugBar\Analysis\Rule\RequestErrorRule;
 use Siteation\DebugBar\Analysis\Rule\SlowBlockRule;
@@ -231,6 +232,53 @@ class RulesTest extends TestCase
         $this->assertCount(1, (new SlowRequestRule($this->threshold(500.0)))->apply(
             $this->profile([], 600.0)
         ));
+    }
+
+    #[Test]
+    public function aProductPageThatWasNotCachedIsAWarningNamingTheReason(): void
+    {
+        $findings = (new PageNotCachedRule())->apply($this->profile(['pagecache' => ['summary' => [
+            'status' => 'not_cached',
+            'page_type' => 'product',
+            'count' => 1,
+            'reasons' => [[
+                'code' => 'layout',
+                'text' => '1 block marked cacheable="false" made the whole layout uncacheable.',
+            ]],
+        ]]]));
+
+        $this->assertCount(1, $findings);
+        $finding = $findings[0]->toArray();
+        $this->assertSame('warning', $finding['severity']);
+        $this->assertStringContainsString('cacheable="false"', $finding['why']);
+        $this->assertSame('pagecache', $finding['action']['section']);
+    }
+
+    #[Test]
+    public function aCacheSwitchedOffOnPurposeIsOnlyMentioned(): void
+    {
+        $findings = (new PageNotCachedRule())->apply($this->profile(['pagecache' => ['summary' => [
+            'status' => 'not_cached',
+            'page_type' => 'category',
+            'reasons' => [['code' => 'disabled', 'text' => 'The full_page cache type is disabled.']],
+        ]]]));
+
+        $this->assertSame('info', $findings[0]->toArray()['severity']);
+    }
+
+    #[Test]
+    public function pagesNobodyExpectsCachedAndPagesThatWereProduceNothing(): void
+    {
+        $rule = new PageNotCachedRule();
+        $reasons = [['code' => 'not_public', 'text' => 'private']];
+
+        $this->assertSame([], $rule->apply($this->profile(['pagecache' => ['summary' => [
+            'status' => 'not_cached', 'page_type' => null, 'reasons' => $reasons,
+        ]]])), 'a cart that is not cached is Magento working as intended');
+        $this->assertSame([], $rule->apply($this->profile(['pagecache' => ['summary' => [
+            'status' => 'hit', 'page_type' => 'product', 'reasons' => [],
+        ]]])));
+        $this->assertSame([], $rule->apply($this->profile([])), 'a store that does not collect the section');
     }
 
     private function threshold(float $ms): Config

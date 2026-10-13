@@ -18,7 +18,7 @@
 
         Constructing HttpPlugin builds whatever its arguments need, and that happens on
         every request in every area before allows() is consulted. Eagerly that is the whole
-        module: seven collectors, eight rules, the filesystem, and the asset repository with
+        module: eight collectors, nine rules, the filesystem, and the asset repository with
         the design resolver behind it. The module's posture is that it is safe to leave
         installed because it is off by default, and this is what makes that true.
 
@@ -61,6 +61,27 @@
                 sortOrder="1"/>
     </type>
 
+    <!-- The built-in full page cache: a hit, and the response it was offered before it rewrote the headers -->
+    <type name="Magento\Framework\App\PageCache\Kernel">
+        <plugin name="siteation_debugbar_page_cache"
+                type="Siteation\DebugBar\Plugin\App\PageCacheKernelPlugin"
+                sortOrder="1"/>
+    </type>
+
+    <!-- Whether the generated layout can be cached, and which blocks say it cannot -->
+    <type name="Magento\Framework\View\Layout">
+        <plugin name="siteation_debugbar_layout"
+                type="Siteation\DebugBar\Plugin\View\LayoutPlugin"
+                sortOrder="1"/>
+    </type>
+
+    <!-- The same file source the layout merge reads, so a handle maps to the files it did -->
+    <type name="Siteation\DebugBar\Model\UncacheableBlocks">
+        <arguments>
+            <argument name="fileSource" xsi:type="object">Magento\Framework\View\Layout\File\Collector\Aggregated\Proxy</argument>
+        </arguments>
+    </type>
+
     <type name="Magento\Framework\App\CacheInterface">
         <plugin name="siteation_debugbar_cache"
                 type="Siteation\DebugBar\Plugin\App\CachePlugin"
@@ -77,6 +98,7 @@
                 <item name="blocks" xsi:type="object">Siteation\DebugBar\Collector\BlockCollector</item>
                 <item name="cache" xsi:type="object">Siteation\DebugBar\Collector\CacheCollector</item>
                 <item name="interception" xsi:type="object">Siteation\DebugBar\Collector\InterceptionCollector</item>
+                <item name="pagecache" xsi:type="object">Siteation\DebugBar\Collector\PageCacheCollector</item>
             </argument>
         </arguments>
     </type>
@@ -91,6 +113,7 @@
                 <item name="block_slow" xsi:type="object">Siteation\DebugBar\Analysis\Rule\SlowBlockRule</item>
                 <item name="observer_slow" xsi:type="object">Siteation\DebugBar\Analysis\Rule\SlowObserverRule</item>
                 <item name="cache_miss" xsi:type="object">Siteation\DebugBar\Analysis\Rule\CacheMissRule</item>
+                <item name="page_not_cached" xsi:type="object">Siteation\DebugBar\Analysis\Rule\PageNotCachedRule</item>
                 <item name="collector_truncated" xsi:type="object">Siteation\DebugBar\Analysis\Rule\TruncatedCollectorRule</item>
             </argument>
         </arguments>

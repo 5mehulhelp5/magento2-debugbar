@@ -98,6 +98,7 @@ Filter it by typing.
 | Observers | Every observer that actually ran, grouped by event |
 | Events | Every dispatched event, including ones nothing listens to |
 | Cache | Reads and writes grouped by key prefix, with hit rates |
+| Page cache | Whether this page went into the full page cache, and if not, why not |
 | Plugins | Which interceptors were built for this request, and on what |
 | Alpine | The components on the page right now, and their live state |
 | Magewire | The components on the page, their state, and each update's cost |
@@ -188,6 +189,33 @@ goes through the store's value policy before it is shown or kept, as Alpine stat
 names and gtag commands are shown under every policy, because without them the list says
 nothing. The pushes of earlier pages are kept in the tab's session storage, already cleaned,
 and not at all under the `none` policy.
+
+### Page cache
+
+Answers "why is this page not cached?" with Magento's own reasons, not a guess. The verdict
+is one of:
+
+- **Served from the full page cache**: the built-in cache answered, so no layout, block or
+  query ran. There are no reasons to show; clean the `full_page` cache and reload to see them.
+- **Stored for the next request**: the page was generated and saved.
+- **Offered to Varnish as cacheable**: on Varnish, PHP never sees a hit, so this is as far as
+  the bar can tell.
+- **Not cached**, with every reason in the order Magento checks them: the `full_page` cache
+  type is off, the method is not GET or HEAD, maintenance mode is on, a block is marked
+  `cacheable="false"`, the status is not 200 or 404, or the response was not offered as public.
+
+A block marked `cacheable="false"` makes the whole page uncacheable, and it is the usual
+cause. The table lists each one that made it into the page, with the layout handle and the
+file that declared it. A block that a layout removed is not listed, because it does not
+stop caching.
+
+The headers are the ones the application handed to the cache. The built-in cache rewrites
+`Cache-Control` once it has stored a page, so the response your browser receives always looks
+uncacheable. `Set-Cookie` lists cookie names only, and is marked when a page that should be
+cached sets one. `X-Magento-Cache-Debug` is only sent in developer mode.
+
+A CMS page, category or product page that was not cached is a finding: a warning, or a note
+when the only reason is that the cache is switched off.
 
 ### Web Vitals
 

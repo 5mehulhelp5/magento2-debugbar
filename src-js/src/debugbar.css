@@ -760,7 +760,9 @@
  * Only trouble is coloured. The status is green in the summary above, and repeating that
  * here would make four of the eight facts green on a request where nothing is wrong.
  */
+.ndb-fact-value.is-ok { color: var(--ndb-ok); }
 .ndb-fact-value.is-warn { color: var(--ndb-warn); }
+.ndb-fact-value.is-dim { color: var(--ndb-dim); }
 .ndb-fact-value.is-bad { color: var(--ndb-bad); }
 
 /* the overview: a summary, then the request as stages */
@@ -943,6 +945,13 @@
   margin: 0;
   padding: 0;
 }
+
+.ndb-reasons > li {
+  border-top: 1px solid var(--ndb-border);
+  padding: 8px 0;
+}
+
+.ndb-reasons > li:first-child { border-top: 0; }
 
 .ndb-query {
   border-top: 1px solid var(--ndb-border);

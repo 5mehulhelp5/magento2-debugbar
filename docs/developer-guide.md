@@ -8,8 +8,8 @@ For working on Siteation_DebugBar itself. If you want to use it, read the
 | | |
 | --- | --- |
 | `Api/` | `CollectorInterface`, `RuleInterface`, `McpToolInterface` |
-| `Plugin/` | The entry hook and the four collection hooks |
-| `Collector/` | Seven collectors and the abstract they share |
+| `Plugin/` | The entry hook and the six collection hooks |
+| `Collector/` | Eight collectors and the abstract they share |
 | `Analysis/` | Findings, rules, the query analyzer, the timeline, the comparer |
 | `Model/` | Config, the gate, the access key, the store, the redactor |
 | `Presentation/` | Bar injection, the markdown report, the MCP presenter |
@@ -210,7 +210,7 @@ for out of the response rather than pushing it over.
 ```
 vendor/bin/phpcs  --standard=<pkg>/phpcs.xml.dist <pkg>
 vendor/bin/phpstan analyse -c <pkg>/phpstan.neon.dist
-vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 219 tests
+vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 235 tests
 <pkg>/dev/smoke https://your-store.test admin                  # 30 assertions over HTTP
 cd <pkg>/src-js && npm test                                    # 96, no store needed
 cd <pkg>/src-js && npm run test:browser                        # 19, needs the store up

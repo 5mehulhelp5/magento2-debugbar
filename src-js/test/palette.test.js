@@ -29,6 +29,7 @@ function state(overrides = {}) {
     observers: {},
     events: {},
     cache: {},
+    pageCache: {},
     interception: {},
     alpineComponents: [],
     magewireComponents: [],
