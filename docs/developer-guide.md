@@ -262,7 +262,8 @@ for out of the response rather than pushing it over.
 ```
 vendor/bin/phpcs  --standard=<pkg>/phpcs.xml.dist <pkg>
 vendor/bin/phpstan analyse -c <pkg>/phpstan.neon.dist
-vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist      # 291 tests
+vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist \
+    --bootstrap vendor/autoload.php                            # 304 tests
 <pkg>/dev/smoke https://your-store.test admin                  # 31 checks over HTTP
 cd <pkg>/src-js && npm test                                    # 163, no store needed
 cd <pkg>/src-js && npm run test:browser                        # 30, needs the store up
@@ -282,6 +283,28 @@ composer global require phpstan/phpstan:^2.2
 That pass is what says the constraint is honest. It reports a typed class constant or a
 `json_validate()` as unavailable rather than waiting for a 8.2 install to find it at runtime.
 Change the constraint in `composer.json` and change the range beside it.
+
+### CI
+
+`.github/workflows/ci.yml` runs every check above that needs no store, on each pull request
+and on main: PHPUnit and PHPStan on PHP 8.2 to 8.5, the PHPStan range pass and phpcs once, the
+JS unit tests, and a fresh `npm run build` that fails when `view/base/web` differs from what
+is committed. phpcs fails on errors and reports warnings. The smoke and browser suites need a
+store, so they stay manual.
+
+There is no shop in CI. `dev/ci` is a small Composer project that installs Magento from the
+Mage-OS public mirror, so no Magento keys are needed, plus PHPUnit, PHPStan 2 and the Magento
+coding standard. The workflow checks the module out at `module/` and copies `dev/ci` to
+`host/` beside it. `dev/ci/bootstrap.php` registers the generator Magento's own unit tests
+use, so factories that only exist once a store generates them, such as `RawFactory`, can be
+mocked and analysed. To reproduce a run locally:
+
+```
+mkdir ci && git clone <repo> ci/module && cp -R ci/module/dev/ci ci/host
+composer install -d ci/host && cd ci
+host/vendor/bin/phpunit -c module/phpunit.xml.dist --bootstrap host/bootstrap.php
+host/vendor/bin/phpstan analyse -c module/phpstan.neon.dist --autoload-file host/bootstrap.php
+```
 
 ### dev/smoke
 

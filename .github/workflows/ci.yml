@@ -1,0 +1,98 @@
+name: CI
+
+# The checks that need no shop. Magento comes from the Mage-OS public mirror, so this needs
+# no Magento keys or secrets. The module is checked out at module/ and the host project in
+# dev/ci is copied to host/, next to it (see dev/ci/bootstrap.php).
+#
+# Not run here: the browser suite (src-js/test/browser) and the smoke suite (dev/smoke).
+# Both need a running shop, so they stay manual.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  php:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: module
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: bcmath, gd, intl, soap, sodium, xsl, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install the host project
+        run: |
+          cp -R module/dev/ci host
+          composer install --working-dir=host --no-interaction --no-progress
+
+      - name: PHPUnit
+        run: host/vendor/bin/phpunit -c module/phpunit.xml.dist --bootstrap host/bootstrap.php
+
+      - name: PHPStan
+        run: >-
+          host/vendor/bin/phpstan analyse -c module/phpstan.neon.dist
+          --autoload-file host/bootstrap.php --no-progress --memory-limit=1G
+
+      # The supported PHP range in one pass, and the coding standard. Neither depends on the
+      # PHP that runs them, so once is enough.
+      - name: PHPStan across the supported PHP range
+        if: matrix.php == '8.5'
+        run: >-
+          host/vendor/bin/phpstan analyse -c module/phpstan-versions.neon.dist
+          --autoload-file host/bootstrap.php --no-progress --memory-limit=1G
+
+      - name: phpcs (errors fail, warnings are reported)
+        if: matrix.php == '8.5'
+        run: >-
+          host/vendor/bin/phpcs -q --standard=module/phpcs.xml.dist module
+          --runtime-set ignore_warnings_on_exit 1
+
+  js:
+    name: JS
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src-js
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src-js/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Unit tests
+        run: npm test
+
+      - name: The committed bundle matches a fresh build
+        run: |
+          npm run build
+          changes="$(git status --porcelain -- ../view/base/web)"
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            echo "::error::view/base/web differs from a fresh build. Run 'npm run build' in src-js and commit the result."
+            exit 1
+          fi

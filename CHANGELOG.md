@@ -89,6 +89,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `request` section records the `X-Robots-Tag` response header as `robots_header`
   when one is sent, because the page cannot read its own response headers.
 
+- **CI** ([#27](https://github.com/Siteation/magento2-debugbar/issues/27)): a GitHub Actions
+  workflow runs PHPUnit and PHPStan on PHP 8.2 to 8.5, phpcs, the JS unit tests, and a check
+  that the committed bundle matches a fresh build. Magento comes from the Mage-OS mirror, so
+  it needs no keys. The smoke and browser suites need a store and stay manual.
+
 ### Fixed
 
 - In the admin, the bar no longer stores a profile of its own requests
