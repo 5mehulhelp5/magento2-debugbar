@@ -15,6 +15,7 @@ use Magento\Framework\View\Layout\ProcessorInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Siteation\DebugBar\Model\CallSiteResolver;
+use Siteation\DebugBar\Model\LayoutFiles;
 use Siteation\DebugBar\Model\UncacheableBlocks;
 
 /**
@@ -154,6 +155,6 @@ class UncacheableBlocksTest extends TestCase
         $callSites = $this->createStub(CallSiteResolver::class);
         $callSites->method('relativePath')->willReturnArgument(0);
 
-        return new UncacheableBlocks($source, $design, new FileDriver(), $callSites);
+        return new UncacheableBlocks(new LayoutFiles($source, $design, new FileDriver()), $callSites);
     }
 }

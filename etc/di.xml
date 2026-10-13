@@ -18,7 +18,7 @@
 
         Constructing HttpPlugin builds whatever its arguments need, and that happens on
         every request in every area before allows() is consulted. Eagerly that is the whole
-        module: eight collectors, nine rules, the filesystem, and the asset repository with
+        module: nine collectors, nine rules, the filesystem, and the asset repository with
         the design resolver behind it. The module's posture is that it is safe to leave
         installed because it is off by default, and this is what makes that true.
 
@@ -68,7 +68,7 @@
                 sortOrder="1"/>
     </type>
 
-    <!-- Whether the generated layout can be cached, and which blocks say it cannot -->
+    <!-- The handles the generated layout loaded, whether it can be cached, and which blocks say it cannot -->
     <type name="Magento\Framework\View\Layout">
         <plugin name="siteation_debugbar_layout"
                 type="Siteation\DebugBar\Plugin\View\LayoutPlugin"
@@ -76,7 +76,7 @@
     </type>
 
     <!-- The same file source the layout merge reads, so a handle maps to the files it did -->
-    <type name="Siteation\DebugBar\Model\UncacheableBlocks">
+    <type name="Siteation\DebugBar\Model\LayoutFiles">
         <arguments>
             <argument name="fileSource" xsi:type="object">Magento\Framework\View\Layout\File\Collector\Aggregated\Proxy</argument>
         </arguments>
@@ -99,6 +99,7 @@
                 <item name="cache" xsi:type="object">Siteation\DebugBar\Collector\CacheCollector</item>
                 <item name="interception" xsi:type="object">Siteation\DebugBar\Collector\InterceptionCollector</item>
                 <item name="pagecache" xsi:type="object">Siteation\DebugBar\Collector\PageCacheCollector</item>
+                <item name="layout" xsi:type="object">Siteation\DebugBar\Collector\LayoutCollector</item>
             </argument>
         </arguments>
     </type>

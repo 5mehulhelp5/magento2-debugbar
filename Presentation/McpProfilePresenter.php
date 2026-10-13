@@ -36,7 +36,7 @@ class McpProfilePresenter
 
     /** @var list<string> */
     private const SECTIONS = [
-        'request', 'queries', 'events', 'observers', 'blocks', 'cache', 'pagecache', 'interception',
+        'request', 'queries', 'events', 'observers', 'blocks', 'cache', 'pagecache', 'layout', 'interception',
         'timeline',
     ];
 

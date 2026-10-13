@@ -910,3 +910,59 @@ test.describe('the Page cache section', () => {
     expect(await ourAlpineErrors(page)).toEqual([])
   })
 })
+
+test.describe('the Layout section', () => {
+  test('lists the cart handles in load order, each with the files behind it', async ({ page }) => {
+    await openBar(page)
+    await state(page, (data) => { data.section = 'layout' })
+
+    await waitForState(page, (data) => data.itemsOf('layout').length > 0)
+    const handles = await state(page, (data) => data.itemsOf('layout').map((entry) => entry.handle))
+
+    // default loads first on every storefront page, and the action's own handle after it,
+    // ahead of the price layout that was generated before the page's.
+    expect(handles[0]).toBe('default')
+    expect(handles.indexOf('checkout_cart_index')).toBeGreaterThan(0)
+    expect(await state(page, (data) => data.itemsOf('layout')
+      .find((entry) => entry.handle === 'checkout_cart_item_renderers')?.via)).toBe('checkout_cart_index')
+    await expect(page.locator('.ndb-sheet li.ndb-intercept', {
+      has: page.locator('code', { hasText: /^checkout_cart_item_renderers$/ }),
+    }).locator('.ndb-tag').first()).toHaveText('via checkout_cart_index')
+
+    const cart = page.locator('.ndb-sheet li.ndb-intercept', {
+      has: page.locator('code', { hasText: /^checkout_cart_index$/ }),
+    })
+    const file = cart.locator('.ndb-intercept-plugins li').first()
+    // The file the merge read. A theme that rewrites layout files shows its rewritten copy,
+    // so only the name is certain.
+    await expect(file.locator('small')).toHaveText(/\/checkout_cart_index\.xml$/)
+    await expect(file.locator('span').first()).toHaveText(/^[A-Z][A-Za-z0-9]+_[A-Za-z0-9]+$| theme$/)
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+
+  test('a handle opens the Blocks section filtered to the blocks it put on the page', async ({ page }) => {
+    await openBar(page)
+    await state(page, (data) => { data.section = 'layout' })
+    await waitForState(page, (data) => data.itemsOf('layout').length > 0)
+
+    await page.locator('.ndb-sheet li.ndb-intercept', {
+      has: page.locator('code', { hasText: /^checkout_cart_index$/ }),
+    }).locator('button.ndb-chip').click()
+
+    await waitForState(page, (data) => data.section === 'blocks')
+    const shown = await state(page, (data) => data.visibleBlocks.map((block) => block.name))
+    const credited = await state(page, (data) => data.visibleBlocks
+      .every((block) => data.blockHandles[block.name] === 'checkout_cart_index'))
+    const all = await state(page, (data) => data.itemsOf('blocks').length)
+
+    // Core's checkout_cart_index.xml declares the cart itself.
+    expect(shown).toContain('checkout.cart')
+    expect(credited).toBe(true)
+    expect(shown.length).toBeLessThan(all)
+
+    await page.locator('.ndb-sheet .ndb-controls button.ndb-chip', { hasText: 'checkout_cart_index' }).click()
+    await waitForState(page, (data) => data.blockHandle === '')
+    expect(await state(page, (data) => data.visibleBlocks.length)).toBe(all)
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+})

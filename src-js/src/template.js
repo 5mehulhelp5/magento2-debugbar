@@ -619,9 +619,68 @@ export const template = `
       </div>
       </template>
 
+      <template data-ndb-if="isSection('layout')">
+      <div>
+        ${facts([
+          { label: 'Handles', value: 'layout.handle_count || 0' },
+          { label: 'Layout files', value: 'layout.file_count || 0' },
+          { label: 'Blocks traced to a handle', value: 'layout.block_count || 0' },
+        ])}
+
+        <p class="ndb-note" data-ndb-show="pageCache.status === 'hit'">
+          The cache answered before Magento routed the request, so no layout was generated.
+          Reload with the full_page cache cleaned to see the handles.
+        </p>
+
+        <div class="ndb-controls">
+          <input class="ndb-search" type="search" placeholder="Filter handles and files"
+                 data-ndb-model="layoutSearch">
+          <span class="ndb-dim ndb-count">
+            <span data-ndb-text="visibleHandles.length"></span> shown, in load order
+          </span>
+        </div>
+
+        <ol class="ndb-list">
+          <template data-ndb-for="(entry, index) in visibleHandles" data-ndb-bind:key="index">
+            <li class="ndb-intercept">
+              <div class="ndb-intercept-type">
+                <code data-ndb-text="entry.handle"></code>
+                <span class="ndb-tag" data-ndb-show="entry.via" data-ndb-text="'via ' + entry.via"
+                      title="Pulled in by an update in this handle's files"></span>
+                <span class="ndb-tag" data-ndb-show="entry.layout === 'separate'"
+                      title="Generated as a layout of its own, such as price rendering or an email">separate layout</span>
+                <button type="button" class="ndb-chip" data-ndb-show="entry.block_count"
+                        data-ndb-on:click="showHandleBlocks(entry.handle)"
+                        title="Show the blocks this handle put on the page">
+                  <span data-ndb-text="entry.block_count === 1 ? '1 block' : entry.block_count + ' blocks'"></span>
+                </button>
+              </div>
+              <ul class="ndb-intercept-plugins">
+                <template data-ndb-for="(file, fileIndex) in entry.files" data-ndb-bind:key="fileIndex">
+                  <li>
+                    <span data-ndb-text="layoutSource(file)"></span>
+                    <small class="ndb-dim ndb-mono ndb-block" data-ndb-text="file.file"></small>
+                  </li>
+                </template>
+                <li class="ndb-dim" data-ndb-show="(entry.files || []).length === 0">
+                  No layout file for this handle in this theme.
+                </li>
+              </ul>
+            </li>
+          </template>
+        </ol>
+
+        <p class="ndb-empty" data-ndb-show="visibleHandles.length === 0">No handles match.</p>
+      </div>
+      </template>
+
       <template data-ndb-if="isSection('blocks')">
       <div>
         <div class="ndb-controls">
+          <button type="button" class="ndb-chip is-active" data-ndb-show="blockHandle"
+                  data-ndb-on:click="blockHandle = ''" title="Show every block again">
+            Handle <code data-ndb-text="blockHandle"></code> &times;
+          </button>
           <input class="ndb-search" type="search" placeholder="Filter blocks and templates"
                  data-ndb-model="blockSearch">
           <span class="ndb-dim ndb-count">

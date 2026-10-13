@@ -145,6 +145,10 @@ export function debugBar() {
     eventSearch: '',
     observerSearch: '',
     blockSearch: '',
+    // A handle from the Layout section. Kept apart from the search box, which filters on
+    // what a block is, where this filters on what put it there.
+    blockHandle: '',
+    layoutSearch: '',
     pluginSearch: '',
     alpineTab: 'components',
     alpineSearch: '',
@@ -754,7 +758,58 @@ export function debugBar() {
 
     /** @returns {Array<object>} */
     get visibleBlocks() {
-      return search(this.itemsOf('blocks'), this.blockSearch, ['name', 'template', 'class'])
+      const blocks = this.blockHandle
+        ? this.itemsOf('blocks').filter((block) => this.blockHandles[block.name] === this.blockHandle)
+        : this.itemsOf('blocks')
+
+      return search(blocks, this.blockSearch, ['name', 'template', 'class'])
+    },
+
+    /** @returns {object} */
+    get layout() {
+      return this.summaryOf('layout')
+    },
+
+    /** @returns {Record<string, string>} each block on the page, to the handle that declared it */
+    get blockHandles() {
+      return this.payloads.layout?.blocks
+        || this.profile.sections?.layout?.payload?.blocks
+        || {}
+    },
+
+    /**
+     * Matches a handle by its name or by any of its files, because the question is as
+     * often "where does this theme file come in" as "what does this handle load".
+     *
+     * @returns {Array<object>}
+     */
+    get visibleHandles() {
+      const needle = this.layoutSearch.trim().toLowerCase()
+      const handles = this.itemsOf('layout')
+
+      if (!needle) return handles
+
+      return handles.filter((entry) => String(entry.handle).toLowerCase().includes(needle)
+        || (entry.files || []).some((file) => String(file.file).toLowerCase().includes(needle)))
+    },
+
+    /**
+     * @param {object} file one of a handle's files
+     * @returns {string} the theme that overrides it, or the module that ships it
+     */
+    layoutSource(file) {
+      return file.theme ? file.theme + ' theme' : (file.module || 'unknown module')
+    },
+
+    /**
+     * The link from a handle to the blocks it put on the page.
+     *
+     * @param {string} handle
+     */
+    showHandleBlocks(handle) {
+      this.blockHandle = handle
+      this.blockSearch = ''
+      this.select('blocks')
     },
 
     /**
