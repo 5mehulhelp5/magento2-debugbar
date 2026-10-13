@@ -43,20 +43,17 @@ function state(page, read) {
  * Selecting a section starts work: history fetches itself, the Alpine section re-reads the
  * page. A test that asks the next question immediately gets the answer from before.
  *
+ * Polled from here, one `state` call at a time, rather than with page.waitForFunction. That
+ * runs its later checks from the page's own frames, where a store that enforces its CSP
+ * refuses the `new Function` the check is built with. The first check ran inside
+ * Playwright's evaluate and was allowed, so the helper only failed when it had to wait.
+ *
  * @param {import('@playwright/test').Page} page
  * @param {(state: object) => boolean} until
  * @returns {Promise<void>}
  */
 async function waitForState(page, until) {
-  await page.waitForFunction(
-    (source) => {
-      const root = document.querySelector('siteation-debugbar')?.shadowRoot?.querySelector('.ndb')
-
-      // eslint-disable-next-line no-new-func
-      return Boolean(new Function(`return (${source})`)()(root._x_dataStack[0]))
-    },
-    until.toString()
-  )
+  await expect.poll(async () => Boolean(await state(page, until))).toBe(true)
 }
 
 /**
