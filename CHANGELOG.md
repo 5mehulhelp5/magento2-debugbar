@@ -89,6 +89,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `request` section records the `X-Robots-Tag` response header as `robots_header`
   when one is sent, because the page cannot read its own response headers.
 
+### Fixed
+
+- In the admin, the bar's sections, History and Compare said "Could not load profile details:
+  The response was not JSON". Its requests went to admin addresses that had no controller,
+  so the admin answered with its 404 page. Those addresses now answer.
+
 ### Changed
 
 - A store that already chose which sections to show keeps that list,
