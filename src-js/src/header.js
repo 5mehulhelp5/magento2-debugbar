@@ -12,6 +12,11 @@ import { icon } from './icons.js'
  * every one of them and the sidebar carries the counts. They were taking 480 of the
  * header's 1022 pixels to repeat what was already on the page below.
  *
+ * A narrow dock sheds them one at a time, measured against the dock rather than the window
+ * because the dock has a max width and can sit anywhere: peak first, then mode, then
+ * queries, then duration. Search and theme follow, and the status phrase. Everything shed
+ * is still in the sheet, which is one click away from wherever the dock is.
+ *
  * They are text either way. They used to jump to their section, which made the header a
  * second navigation over the same destinations as the sidebar.
  *
@@ -54,14 +59,14 @@ ${sheet ? '' : `  <button type="button" class="ndb-icon-button ndb-drag-handle"
       <span class="ndb-path" data-ndb-text="requestLabel(request)"></span>
       <span class="ndb-request-meta">
         <span data-ndb-bind:class="'is-' + statusTone" data-ndb-text="request.status"></span>
-        <span data-ndb-text="statusPhrase"></span>
+        <span class="ndb-status-phrase" data-ndb-text="statusPhrase"></span>
         <span class="ndb-dim" data-ndb-text="bytes(request.response_bytes)"></span>
       </span>
     </span>
   </button>
 
 ${sheet ? '' : `  <div class="ndb-stats">
-    <div class="ndb-stat">
+    <div class="ndb-stat is-mode">
       <span class="ndb-env-dot" data-ndb-bind:class="'is-' + modeTone"></span>
       <span>
         <span class="ndb-stat-key">Mode</span>
@@ -69,7 +74,7 @@ ${sheet ? '' : `  <div class="ndb-stats">
       </span>
     </div>
 
-    <div class="ndb-stat">
+    <div class="ndb-stat is-queries">
       ${icon('database', 'is-accent')}
       <span>
         <span class="ndb-stat-key">Queries</span>
@@ -89,7 +94,7 @@ ${sheet ? '' : `  <div class="ndb-stats">
       </span>
     </div>
 
-    <div class="ndb-stat is-secondary">
+    <div class="ndb-stat is-peak">
       ${icon('chip', 'is-accent')}
       <span>
         <span class="ndb-stat-key">Peak</span>
@@ -99,12 +104,12 @@ ${sheet ? '' : `  <div class="ndb-stats">
   </div>`}
 
   <div class="ndb-controls-group">
-    <button type="button" class="ndb-icon-button" data-ndb-on:click="openPalette()"
+    <button type="button" class="ndb-icon-button is-optional" data-ndb-on:click="openPalette()"
             title="Search sections and settings">
       ${icon('search')}
     </button>
 
-    <button type="button" class="ndb-icon-button" data-ndb-on:click="cycleTheme()"
+    <button type="button" class="ndb-icon-button is-optional" data-ndb-on:click="cycleTheme()"
             data-ndb-bind:title="'Theme: ' + theme + '. Click for the next one.'">
       <span data-ndb-show="theme === 'system'">${icon('monitor')}</span>
       <span data-ndb-show="theme === 'light'">${icon('sun')}</span>
