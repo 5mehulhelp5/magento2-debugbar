@@ -1,6 +1,5 @@
 {
     "name": "siteation/magento2-debugbar",
-    "version": "1.2.0",
     "license": "MIT",
     "type": "magento2-module",
     "description": "Developer debug bar for Magento 2, with findings and an MCP server",

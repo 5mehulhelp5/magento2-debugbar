@@ -7,153 +7,175 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+[Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.3.0...main
+
+## [1.3.0] - 2026-10-26
+
+[1.3.0]: https://github.com/Siteation/magento2-debugbar/compare/1.2.0...1.3.0
+
 ### Added
 
-- The **SEO server half**, first part
-  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10)):
-  a profile of a storefront page now keeps what the HTML the server sent told search
-  engines: title, description, canonical links, robots meta tag and header, language and
-  hreflang alternates, headings, Open Graph and X tags, and structured data types. Five SEO
-  findings come from it: no canonical on a product or category page, more than one
-  canonical, noindex on a page meant to be found, more than one H1, and no H1. A new MCP tool,
-  `get_debug_seo`, returns the facts and the findings together, and the markdown report has
-  an SEO table. A finding opens the SEO view that shows the same thing on the live page.
+- A Page cache section.
+  It says whether the page was served from the full page cache, stored for the next request, or not cached,
+  with every reason in the order Magento checks them.
+  Each block marked `cacheable="false"` is listed with the layout handle and file that declared it,
+  and the headers are shown as the application offered them to the cache.
+  A CMS page, category or product page that was not cached is a finding.
+  ([#8](https://github.com/Siteation/magento2-debugbar/issues/8))
 
-- The **SEO server half**, second part
-  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10)):
-  the SEO overview puts the HTML the server sent next to the live page and marks what a
-  script changed after load, which a crawler that does not run JavaScript never sees.
-  Compare, the markdown report and `compare_debug_profiles` list the SEO facts that differ
-  between two requests.
+- A Layout section.
+  It lists the layout handles the request loaded, in the order Magento merged them,
+  with the XML files behind each one and the module or theme each file comes from.
+  Handles pulled in by an `<update handle>` are listed after the handle that pulled them in.
+  A separate layout, such as the one prices render through, is listed after the page's own and marked.
+  Each handle links to the Blocks section, filtered to the blocks that handle put on the page.
+  ([#9](https://github.com/Siteation/magento2-debugbar/issues/9))
 
-- The **SEO server half**, third part
-  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10)):
-  for the title, description, H1, canonical and robots on a product, category or CMS page,
-  the SEO overview names the attribute, CMS field or setting Magento takes it from, with a
-  link to edit it, and marks a value the page does not match as set elsewhere. The report
-  and `get_debug_seo` carry the same. Three new findings check a product page's structured
-  data offers against the product: a price it does not sell for, another currency, and a
-  stock status that says the opposite of whether it can be bought.
-
-- A **Layout** section
-  ([#9](https://github.com/Siteation/magento2-debugbar/issues/9)):
-  the layout handles the request loaded, in the order Magento merged them, with the XML
-  files behind each one and the module or theme each file comes from. Handles pulled in by
-  an `<update handle>` are listed after the handle that pulled them in. A separate layout,
-  such as the one prices render through, is listed after the page's own and marked. Each
-  handle links to the Blocks section, filtered to the blocks that handle put on the page.
-  The Page cache section now reads layout files through the same lookup.
-
-- A **Page cache** section
-  ([#8](https://github.com/Siteation/magento2-debugbar/issues/8)):
-  whether the page was served from the full page cache, stored for the next request, or
-  not cached, and every reason in the order Magento checks them. Each block marked
-  `cacheable="false"` is listed with the layout handle and file that declared it, and the
-  headers are shown as the application offered them to the cache. A CMS page, category or
-  product page that was not cached is a finding. The overview no longer guesses at a cache
-  hit from an empty profile when this section can say.
-
-- An **SEO** section, read from the live page, with five views
-  ([#4](https://github.com/Siteation/magento2-debugbar/issues/4)):
+- An SEO section, read from the live page, with five views:
   Overview (title, meta description, canonical, robots, hreflang, language, viewport,
   charset, word count and quick links), Headings, Images, Links and Social.
   Each view counts what needs a look, and the sidebar shows the total.
+  ([#4](https://github.com/Siteation/magento2-debugbar/issues/4))
 
-- A **Schema** view in the SEO section
-  ([#6](https://github.com/Siteation/magento2-debugbar/issues/6)):
-  JSON-LD and microdata as one list of entities, parse errors with their line,
-  Google's rich result rules for the types a shop uses, a warning when one entity is
-  described twice, and the markup ready to paste into Google's tools when they cannot
-  reach the shop.
+- A Schema view in the SEO section.
+  JSON-LD and microdata are shown as one list of entities, with parse errors and their line,
+  Google's rich result rules for the types a shop uses,
+  and a warning when one entity is described twice.
+  The markup can be copied into Google's tools when they cannot reach the shop.
+  ([#6](https://github.com/Siteation/magento2-debugbar/issues/6))
 
-- A **Data layer** section
-  ([#5](https://github.com/Siteation/magento2-debugbar/issues/5)),
-  with Pushes, Tags and Consent views: every `dataLayer.push` from the first byte, kept
-  across pages in the tab, with paths to copy and GA4 ecommerce checks; the tags on the
-  page and the ones loaded twice; and the Consent Mode v2 state. Values go through the
-  value policy before they are shown or kept.
+- SEO facts from the HTML the server sent, recorded in the profile of a storefront page:
+  title, description, canonical links, robots meta tag and header, language and hreflang alternates,
+  headings, Open Graph and X tags, and structured data types.
+  The markdown report has an SEO table, and a new MCP tool, `get_debug_seo`, returns the facts with their findings.
+  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10))
 
-- A **Web Vitals** section
-  ([#7](https://github.com/Siteation/magento2-debugbar/issues/7)):
-  LCP, CLS and INP, with TTFB and FCP, rated against Google's thresholds and updated as the
-  page is used. It points at the LCP element, the slowest interaction's target, and the
-  elements each layout shift moved. Clicks on the bar are left out of INP.
+- Five SEO findings from those facts:
+  no canonical on a product or category page, more than one canonical,
+  noindex on a page meant to be found, more than one H1, and no H1.
+  A finding opens the SEO view that shows the same thing on the live page.
+  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10))
+
+- The SEO overview puts the HTML the server sent next to the live page,
+  and marks what a script changed after load, which a crawler that does not run JavaScript never sees.
+  Compare, the markdown report and `compare_debug_profiles` list the SEO facts that differ between two requests.
+  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10))
+
+- The SEO overview names where the title, description, H1, canonical and robots of a product,
+  category or CMS page come from: the attribute, CMS field or setting, with a link to edit it.
+  A value the page does not match is marked as set elsewhere.
+  The report and `get_debug_seo` carry the same.
+  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10))
+
+- Three findings that check the structured data offers on a product page against the product:
+  a price it does not sell for, another currency,
+  and a stock status that says the opposite of whether it can be bought.
+  ([#10](https://github.com/Siteation/magento2-debugbar/issues/10))
+
+- A Data layer section, with Pushes, Tags and Consent views.
+  Pushes lists every `dataLayer.push` from the first byte, kept across pages in the tab,
+  with paths to copy and GA4 ecommerce checks.
+  Tags lists the tags on the page and the ones loaded twice.
+  Consent shows the Consent Mode v2 state.
+  Values go through the value policy before they are shown or kept.
+  ([#5](https://github.com/Siteation/magento2-debugbar/issues/5))
+
+- A Web Vitals section.
+  LCP, CLS and INP, with TTFB and FCP, rated against Google's thresholds and updated as the page is used.
+  It points at the LCP element, the slowest interaction's target, and the elements each layout shift moved.
+  Clicks on the bar are left out of INP.
+  ([#7](https://github.com/Siteation/magento2-debugbar/issues/7))
+
+- Edit this page in the admin, on product, category and CMS pages.
+  It goes through a new admin route, `siteation_debugbar/entity/edit`,
+  which checks the role for that kind of page and adds the secret key when the store uses one.
+
+- The `request` section records the `X-Robots-Tag` response header as `robots_header` when one is sent,
+  because the page cannot read its own response headers.
 
 - Request entries in the head script's buffer carry `at`, the time the response arrived,
   so a data layer push can be matched to the request before it.
 
-- **Edit this page in the admin**, on product, category and CMS pages.
-  It goes through a new admin route, `siteation_debugbar/entity/edit`,
-  which checks the role for that kind of page and adds the secret key when the store uses one.
-
-- The `request` section records the `X-Robots-Tag` response header as `robots_header`
-  when one is sent, because the page cannot read its own response headers.
-
-- **CI** ([#27](https://github.com/Siteation/magento2-debugbar/issues/27)): a GitHub Actions
-  workflow runs PHPUnit and PHPStan on PHP 8.2 to 8.5, phpcs, the JS unit tests, and a check
-  that the committed bundle matches a fresh build. Magento comes from the Mage-OS mirror, so
-  it needs no keys. The smoke and browser suites need a store and stay manual.
-
-### Fixed
-
-- The collapsed bar fits narrow screens. As the bar gets narrower it hides peak memory,
-  mode, queries and duration in that order, then the search and theme buttons. Each of
-  these is still shown in the open inspector. Before, the stats never shrank, so the path
-  disappeared first and then the window controls were pushed off the bar. The breakpoints
-  are container queries on the bar itself, since its width is capped at 1024 pixels and
-  no longer follows the window above that.
-
-- In the admin, the bar no longer stores a profile of its own requests
-  ([#30](https://github.com/Siteation/magento2-debugbar/issues/30)). Opening a profile,
-  the history or a comparison used to save one more profile each time and push the real
-  ones out of the twenty kept.
-
-- A cache removal is recorded only while the cache section is collected, and a recorder
-  that fails no longer breaks the removal itself
-  ([#31](https://github.com/Siteation/magento2-debugbar/issues/31)). Loads and saves
-  already worked this way.
-
-- A row past a section's 500-row cap is counted without being redacted first
-  ([#33](https://github.com/Siteation/magento2-debugbar/issues/33)). It was redacted in
-  full and then thrown away, so a page with thousands of queries paid for each one.
-
-- The admin no longer shows the Developer Access Key
-  ([#36](https://github.com/Siteation/magento2-debugbar/issues/36)). The field is masked,
-  and saving the page without touching it keeps the stored key. It is still stored as an
-  ordinary setting.
-
-- The Full Page Cache section names every cookie a response sets in its headers, not only
-  the first ([#34](https://github.com/Siteation/magento2-debugbar/issues/34)).
-
-- In the admin, the bar's sections, History and Compare said "Could not load profile details:
-  The response was not JSON". Its requests went to admin addresses that had no controller,
-  so the admin answered with its 404 page. Those addresses now answer.
-
-- **Web Vitals no longer keeps every entry on a page left open**
-  ([#35](https://github.com/Siteation/magento2-debugbar/issues/35)). It kept every
-  interaction and layout shift for as long as the page was open, each with the element it
-  was about. Each read now trims them to what the vitals need: the last LCP candidate, the
-  slowest hundred interactions (more on a page used enough for INP to reach further), and
-  the worst layout shift window with the latest ones. The numbers shown do not change: INP
-  is exact up to 5000 interactions on one page, the interaction count still counts every
-  one, and a shift window keeps its number.
+- A GitHub Actions workflow runs PHPUnit and PHPStan on PHP 8.2 to 8.5, phpcs, the JS unit tests,
+  and a check that the committed bundle matches a fresh build.
+  Magento comes from the Mage-OS mirror, so it needs no keys.
+  The smoke and browser suites need a store and stay manual.
+  ([#27](https://github.com/Siteation/magento2-debugbar/issues/27))
 
 ### Changed
 
-- Each distinct SQL statement is normalised once per request instead of five times
-  ([#32](https://github.com/Siteation/magento2-debugbar/issues/32)). On a page of 300
-  queries the analysis takes about 2.4 ms instead of 4.6 ms.
+- The overview no longer guesses at a cache hit from an empty profile.
+  The Page cache section says so instead.
+  ([#8](https://github.com/Siteation/magento2-debugbar/issues/8))
 
-- PHPStan runs at level 8 instead of 6, clean on both PHPStan 1.12 and 2.x
-  ([#34](https://github.com/Siteation/magento2-debugbar/issues/34)).
+- The Page cache section reads layout files through the same lookup as the Layout section.
+  ([#9](https://github.com/Siteation/magento2-debugbar/issues/9))
+
+- Each distinct SQL statement is normalised once per request instead of five times.
+  On a page of 300 queries the analysis takes about 2.4 ms instead of 4.6 ms.
+  ([#32](https://github.com/Siteation/magento2-debugbar/issues/32))
+
+- PHPStan runs at level 8 instead of 6, clean on both PHPStan 1.12 and 2.x.
+  ([#34](https://github.com/Siteation/magento2-debugbar/issues/34))
 
 - A store that already chose which sections to show keeps that list,
-  so the SEO, Data layer and Web Vitals sections stay off there until they are added under
-  Sections in the configuration.
-- The README and both guides describe every section, sub view and MCP tool as they ship now,
-  with new screenshots ([#26](https://github.com/Siteation/magento2-debugbar/issues/26)).
+  so the SEO, Data layer and Web Vitals sections stay off there
+  until they are added under Sections in the configuration.
 
-[Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.2.0...main
+- The README and both guides describe every section, sub view and MCP tool as they ship now,
+  with new screenshots.
+  ([#26](https://github.com/Siteation/magento2-debugbar/issues/26))
+
+### Fixed
+
+- The collapsed bar fits narrow screens.
+  As it gets narrower it hides peak memory, mode, queries and duration in that order,
+  then the search and theme buttons, all of which the open inspector still shows.
+  Before, the stats never shrank, so the path disappeared first
+  and then the window controls were pushed off the bar.
+  ([#48](https://github.com/Siteation/magento2-debugbar/pull/48))
+
+- The theme and maximise icons sit in the middle of their buttons.
+  The theme icon was 2.8 pixels above centre.
+
+- In the admin, the bar no longer stores a profile of its own requests.
+  Opening a profile, the history or a comparison used to save one more profile each time
+  and push the real ones out of the twenty kept.
+  ([#30](https://github.com/Siteation/magento2-debugbar/issues/30))
+
+- In the admin, the bar's sections, History and Compare no longer say
+  "Could not load profile details: The response was not JSON".
+  Their requests went to admin addresses that had no controller,
+  so the admin answered with its 404 page.
+
+- A cache removal is recorded only while the cache section is collected,
+  and a recorder that fails no longer breaks the removal itself.
+  Loads and saves already worked this way.
+  ([#31](https://github.com/Siteation/magento2-debugbar/issues/31))
+
+- A row past a section's 500-row cap is counted without being redacted first.
+  It was redacted in full and then thrown away, so a page with thousands of queries paid for each one.
+  ([#33](https://github.com/Siteation/magento2-debugbar/issues/33))
+
+- The Full Page Cache section names every cookie a response sets in its headers, not only the first.
+  ([#34](https://github.com/Siteation/magento2-debugbar/issues/34))
+
+- Web Vitals no longer keeps every entry on a page left open.
+  It kept every interaction and layout shift for as long as the page was open, each with the element it was about.
+  Each read now trims them to what the vitals need: the last LCP candidate,
+  the slowest hundred interactions (more on a page used enough for INP to reach further),
+  and the worst layout shift window with the latest ones.
+  The numbers shown do not change.
+  INP is exact up to 5000 interactions on one page, the interaction count still counts every one,
+  and a shift window keeps its number.
+  ([#35](https://github.com/Siteation/magento2-debugbar/issues/35))
+
+### Security
+
+- The admin no longer shows the Developer Access Key.
+  The field is masked, and saving the page without touching it keeps the stored key.
+  It is still stored as an ordinary setting.
+  ([#36](https://github.com/Siteation/magento2-debugbar/issues/36))
 
 ## [1.2.0] - 2026-10-11
 
