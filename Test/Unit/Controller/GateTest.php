@@ -15,6 +15,7 @@ use Siteation\DebugBar\Analysis\ProfileComparer;
 use Siteation\DebugBar\Controller\Profile\Compare;
 use Siteation\DebugBar\Controller\Profile\History;
 use Siteation\DebugBar\Controller\Profile\View;
+use Siteation\DebugBar\Model\ContributedSections;
 use Siteation\DebugBar\Model\ProfileStore;
 use Siteation\DebugBar\Model\RequestEligibility;
 use Siteation\DebugBar\Presentation\ProfileReport;
@@ -41,7 +42,8 @@ class GateTest extends TestCase
             $this->rawFactory(),
             $this->untouchedStore(),
             $this->closedGate(),
-            $this->createStub(ProfileReport::class)
+            $this->createStub(ProfileReport::class),
+            $this->createStub(ContributedSections::class)
         );
 
         $controller->execute();

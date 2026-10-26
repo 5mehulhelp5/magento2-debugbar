@@ -1533,6 +1533,98 @@ export const template = `
       </div>
       </template>
 
+      <template data-ndb-if="isExtension(currentSection.id)">
+      <div class="ndb-extension">
+        <div class="ndb-subtabs" role="tablist" data-ndb-show="extension.tabs.length > 0">
+          <template data-ndb-for="tab in extension.tabs" data-ndb-bind:key="tab.id">
+            <button type="button" class="ndb-subtab" role="tab"
+                    data-ndb-bind:aria-selected="extension.tab === tab.id ? 'true' : 'false'"
+                    data-ndb-bind:class="extension.tab === tab.id && 'is-active'"
+                    data-ndb-on:click="selectExtensionTab(tab.id)">
+              <span data-ndb-text="tab.label"></span>
+              <span class="ndb-pill" data-ndb-show="tab.count" data-ndb-text="tab.count"></span>
+            </button>
+          </template>
+        </div>
+
+        <p class="ndb-note is-bad" data-ndb-show="extension.error">
+          This section could not read the page: <span data-ndb-text="extension.error"></span>
+        </p>
+
+        <template data-ndb-for="(block, index) in extension.blocks" data-ndb-bind:key="extension.tab + index">
+        <div class="ndb-extension-block">
+          <template data-ndb-if="block.type === 'heading'">
+            <div class="ndb-subhead"><div><h3 data-ndb-text="block.text"></h3></div></div>
+          </template>
+
+          <template data-ndb-if="block.type === 'note'">
+            <p class="ndb-note" data-ndb-bind:class="'is-' + (block.tone || 'plain')"
+               data-ndb-text="block.text"></p>
+          </template>
+
+          <template data-ndb-if="block.type === 'list'">
+            <ul class="ndb-list ndb-reasons">
+              <template data-ndb-for="(item, itemIndex) in block.items" data-ndb-bind:key="itemIndex">
+                <li data-ndb-text="item"></li>
+              </template>
+            </ul>
+          </template>
+
+          <template data-ndb-if="block.type === 'facts'">
+            <dl class="ndb-facts">
+              <template data-ndb-for="(fact, factIndex) in block.items" data-ndb-bind:key="factIndex">
+                <div class="ndb-fact">
+                  <dt data-ndb-text="fact.label"></dt>
+                  <dd class="ndb-fact-value"
+                      data-ndb-bind:class="(fact.mono ? 'ndb-mono ' : '') + (fact.tone ? 'is-' + fact.tone : '')"
+                      data-ndb-text="fact.value"></dd>
+                </div>
+              </template>
+            </dl>
+          </template>
+
+          <template data-ndb-if="block.type === 'code'">
+            <pre class="ndb-json" data-ndb-code="highlight(block.text, block.language)"></pre>
+          </template>
+
+          <template data-ndb-if="block.type === 'table'">
+          <div>
+            <table class="ndb-table" data-ndb-show="block.rows.length > 0">
+              <thead>
+                <tr>
+                  <template data-ndb-for="(column, columnIndex) in block.columns" data-ndb-bind:key="columnIndex">
+                    <th data-ndb-bind:class="column.num && 'ndb-num'" data-ndb-text="column.label"></th>
+                  </template>
+                </tr>
+              </thead>
+              <tbody>
+                <template data-ndb-for="(row, rowIndex) in block.rows" data-ndb-bind:key="rowIndex">
+                  <tr data-ndb-bind:class="(row.tone ? 'is-' + row.tone : '') + (row.target ? ' is-target' : '')"
+                      data-ndb-on:mouseenter="highlightExtension(row.target, true)"
+                      data-ndb-on:mouseleave="highlightExtension(row.target, false)">
+                    <template data-ndb-for="(cell, cellIndex) in row.cells" data-ndb-bind:key="cellIndex">
+                      <td class="ndb-extension-cell"
+                          data-ndb-bind:class="(block.columns[cellIndex].num ? 'ndb-num ' : '') + (block.columns[cellIndex].mono ? 'ndb-mono ' : '') + (cell.tone ? 'is-' + cell.tone : '')"
+                          data-ndb-text="cell.text"></td>
+                    </template>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <p class="ndb-empty" data-ndb-show="block.rows.length === 0" data-ndb-text="block.empty"></p>
+            <p class="ndb-dim ndb-count" data-ndb-show="block.cut > 0"
+               data-ndb-text="block.cut + ' more rows not shown.'"></p>
+          </div>
+          </template>
+        </div>
+        </template>
+
+        <p class="ndb-empty" data-ndb-show="extension.empty && !extension.error">
+          Nothing recorded for this request.
+        </p>
+      </div>
+      </template>
+
       <template data-ndb-if="isSection('history')">
       <div>
         ${subTabs('historyTab', [

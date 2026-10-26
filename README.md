@@ -20,7 +20,7 @@ inspects exact data instead of guessing from a screenshot.
 
 [preview-overview]: ./assets/overview.webp "The bar open on Overview, on a store home page, showing the request as stages"
 
-Verified against a running store: 345 PHPUnit tests, 168 for the bar's own JavaScript, 34
+Verified against a running store: 360 PHPUnit tests, 193 for the bar's own JavaScript, 34
 driving it in a browser, and a 31 check smoke suite across all four areas.
 
 ## Requirements

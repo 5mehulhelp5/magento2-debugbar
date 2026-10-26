@@ -965,6 +965,10 @@
   font-size: 14px;
 }
 
+.ndb-note.is-plain { border-left-color: var(--ndb-border); }
+.ndb-note.is-ok { border-left-color: var(--ndb-ok); }
+.ndb-note.is-bad { border-left-color: var(--ndb-bad); }
+
 .ndb-facts + .ndb-note {
   margin-top: 16px;
 }
@@ -2051,3 +2055,13 @@ a.ndb-chip { text-decoration: none; }
 }
 
 .ndb-push-paths td { overflow-wrap: anywhere; }
+
+/* sections other modules add */
+
+.ndb-extension-block + .ndb-extension-block { margin-top: 16px; }
+.ndb-extension-cell.is-ok { color: var(--ndb-ok); }
+.ndb-extension-cell.is-warn { color: var(--ndb-warn); }
+.ndb-extension-cell.is-bad { color: var(--ndb-bad); }
+.ndb-table tr.is-warn td:first-of-type { box-shadow: inset 2px 0 var(--ndb-warn); padding-left: 8px; }
+.ndb-table tr.is-bad td:first-of-type { box-shadow: inset 2px 0 var(--ndb-bad); padding-left: 8px; }
+.ndb-table tr.is-target:hover td { background: var(--ndb-bg-2); }

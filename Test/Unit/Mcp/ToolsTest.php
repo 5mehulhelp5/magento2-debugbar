@@ -7,6 +7,7 @@ namespace Siteation\DebugBar\Test\Unit\Mcp;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Siteation\DebugBar\Analysis\ProfileComparer;
 use Siteation\DebugBar\Analysis\QueryAnalyzer;
 use Siteation\DebugBar\Api\McpToolInterface;
@@ -17,6 +18,8 @@ use Siteation\DebugBar\Mcp\Tool\GetSection;
 use Siteation\DebugBar\Mcp\Tool\GetSeo;
 use Siteation\DebugBar\Mcp\Tool\InspectQueries;
 use Siteation\DebugBar\Mcp\Tool\ListProfiles;
+use Siteation\DebugBar\Model\Config;
+use Siteation\DebugBar\Model\ContributedSections;
 use Siteation\DebugBar\Model\ProfileStore;
 use Siteation\DebugBar\Presentation\McpProfilePresenter;
 use Siteation\DebugBar\Presentation\ProfileSummary;
@@ -271,6 +274,29 @@ class ToolsTest extends TestCase
     }
 
     #[Test]
+    public function aSectionAnotherModuleAddsIsOfferedAndRead(): void
+    {
+        $store = $this->createStub(ProfileStore::class);
+        $store->method('get')->willReturn([
+            'id' => 'p',
+            'sections' => ['c365' => ['summary' => ['count' => 1], 'payload' => ['items' => [['sku' => 'A']]]]],
+        ]);
+        $contributed = new ContributedSections(
+            $this->createStub(LoggerInterface::class),
+            $this->createStub(Config::class),
+            ['c365' => ['label' => 'Commerce365']]
+        );
+        $tool = new GetSection(new McpProfilePresenter($store, new ProfileSummary(), $this->comparer(), $contributed));
+
+        $this->assertContains('c365', $tool->inputSchema()['properties']['section']['enum']);
+
+        $result = $tool->call(['profile_id' => 'p', 'section' => 'c365']);
+
+        $this->assertSame('ok', $result['status']);
+        $this->assertSame([['sku' => 'A']], $result['items']);
+    }
+
+    #[Test]
     public function aSectionNotOnOfferIsAnErrorThatSaysWhatIs(): void
     {
         $tool = new GetSection($this->presenter([
@@ -321,7 +347,7 @@ class ToolsTest extends TestCase
         $store->method('get')->willReturnCallback(
             static fn (string $id): ?array => $id === 'before' ? ['id' => 'before', 'sections' => []] : null
         );
-        $tool = new CompareProfiles(new McpProfilePresenter($store, new ProfileSummary(), $this->comparer()));
+        $tool = new CompareProfiles($this->presenterOver($store));
 
         $result = $tool->call(['baseline_profile_id' => 'before', 'subject_profile_id' => 'after']);
 
@@ -335,7 +361,7 @@ class ToolsTest extends TestCase
     {
         $store = $this->createStub(ProfileStore::class);
         $store->method('recent')->willReturn([]);
-        $tool = new ListProfiles(new McpProfilePresenter($store, new ProfileSummary(), $this->comparer()));
+        $tool = new ListProfiles($this->presenterOver($store));
 
         $result = $tool->call([]);
 
@@ -406,7 +432,23 @@ class ToolsTest extends TestCase
         $store->method('get')->willReturn($profile);
         $store->method('recent')->willReturn([]);
 
-        return new McpProfilePresenter($store, new ProfileSummary(), $this->comparer(), self::MAX_ITEMS);
+        return new McpProfilePresenter(
+            $store,
+            new ProfileSummary(),
+            $this->comparer(),
+            $this->noContributions(),
+            self::MAX_ITEMS
+        );
+    }
+
+    private function presenterOver(ProfileStore $store): McpProfilePresenter
+    {
+        return new McpProfilePresenter($store, new ProfileSummary(), $this->comparer(), $this->noContributions());
+    }
+
+    private function noContributions(): ContributedSections
+    {
+        return new ContributedSections($this->createStub(LoggerInterface::class), $this->createStub(Config::class));
     }
 
     private function comparer(): ProfileComparer

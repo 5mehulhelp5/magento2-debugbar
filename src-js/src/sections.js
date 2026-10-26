@@ -18,15 +18,21 @@
  * Findings and the overview are always drawn: one is the answer the rest of the bar is
  * evidence for, and the other is how a profile says which request it belongs to.
  *
+ * Sections other modules add go after the bar's own live sections and before History,
+ * which stays last because it is about every request rather than this one.
+ *
  * @param {string} wanted the comma separated list the server published, empty for all
+ * @param {Array<object>} [extra] sections other modules add, from extensions.js
  * @returns {Array<object>}
  */
-export function enabledSections(wanted) {
+export function enabledSections(wanted, extra = []) {
   const chosen = String(wanted || '').split(',').map((id) => id.trim()).filter(Boolean)
+  const history = SECTIONS.findIndex((section) => section.id === 'history')
+  const all = [...SECTIONS.slice(0, history), ...extra, ...SECTIONS.slice(history)]
 
-  if (chosen.length === 0) return SECTIONS
+  if (chosen.length === 0) return all
 
-  return SECTIONS.filter((section) => ALWAYS.includes(section.id) || chosen.includes(section.id))
+  return all.filter((section) => ALWAYS.includes(section.id) || chosen.includes(section.id))
 }
 
 /** @type {Array<string>} */
@@ -136,6 +142,8 @@ export const SECTIONS = [
  * Alpine, Magewire, SEO, the data layer and Web Vitals are the counts that do not come from
  * the profile. They are read from the page, so they can change without the request changing.
  *
+ * A section another module adds counts what its view or its summary says.
+ *
  * @param {string} id
  * @param {object} state the bar's Alpine component
  * @returns {number|null}
@@ -159,6 +167,6 @@ export function countFor(id, state) {
     case 'datalayer': return state.dataLayer.warningCount || null
     case 'vitals': return state.vitals.poorCount || null
     case 'history': return state.history.length || null
-    default: return null
+    default: return typeof state.extensionCount === 'function' ? state.extensionCount(id) : null
   }
 }

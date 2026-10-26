@@ -8,9 +8,11 @@ import {
 } from './dock.js'
 import { SECTIONS, countFor, enabledSections } from './sections.js'
 import { commandsFor, matchCommands } from './palette.js'
-import { policyName } from './redact.js'
+import { clean, policyName } from './redact.js'
 import { highlight as highlightCode } from './highlight.js'
 import { fetchJson, fetchProfile } from './transport.js'
+import { countFromSummary, mergeViews, normalizeView, readDefinitions } from './extensions.js'
+import { highlightTarget, hasReader, readSection, watchSection, watchSections } from './extensions-page.js'
 import {
   ago as formatAgo,
   bytes as formatBytes,
@@ -115,6 +117,18 @@ function search(items, term, fields) {
  * @returns {object} Alpine component definition
  */
 export function debugBar() {
+  /** @type {Record<string, ReturnType<typeof setTimeout>>} one pending re-read per contributed section */
+  const extensionTimers = {}
+
+  /**
+   * The panel reads the view several times per render, and a view can hold a table of
+   * hundreds of rows. Views are replaced, never changed in place, so the merge is redone
+   * only when one of its two halves is a different object.
+   *
+   * @type {Map<string, {server: object|undefined, live: object|undefined, view: import('./extensions.js').View}>}
+   */
+  const merged = new Map()
+
   return {
     profile: {},
     open: false,
@@ -208,6 +222,16 @@ export function debugBar() {
     paletteIndex: 0,
     paletteReturnFocus: null,
     payloads: {},
+    /** @type {Record<string, object>} the server's views of contributed sections, by id */
+    views: {},
+    /** @type {Array<import('./extensions.js').Definition>} sections other modules add */
+    extensions: [],
+    /** @type {Record<string, import('./extensions.js').View>} what each contributed reader last drew */
+    extensionLive: {},
+    /** @type {Record<string, string>} */
+    extensionErrors: {},
+    /** @type {Record<string, string>} the tab open in each contributed section */
+    extensionTabs: {},
     loading: false,
     loadError: '',
     requests: [],
@@ -233,6 +257,13 @@ export function debugBar() {
       this.pageProfile = this.profile
       this.activeId = this.profile.id || null
 
+      // Before the favourites are read back, or a pinned contributed section would be
+      // dropped as unknown on every page load.
+      this.extensions = readDefinitions(
+        this.rootElement()?.dataset.extensions,
+        SECTIONS.map((section) => section.id)
+      )
+
       const preferences = readPreferences()
       this.collapsed = Boolean(preferences.collapsed)
       this.open = preferences.open && !this.collapsed
@@ -246,7 +277,8 @@ export function debugBar() {
         ? preferences.theme
         : 'system'
       this.favourites = Array.isArray(preferences.favourites)
-        ? preferences.favourites.filter((id) => SECTIONS.some((section) => section.id === id))
+        ? preferences.favourites.filter((id) => SECTIONS.some((section) => section.id === id)
+          || this.isExtension(id))
         : []
       this.watchColorScheme()
       this.valuePolicy = policyName(this.rootElement()?.dataset.valuePolicy)
@@ -268,6 +300,7 @@ export function debugBar() {
         if (value === 'seo') this.refreshSeo()
         if (value === 'datalayer') this.refreshDataLayer()
         if (value === 'vitals') this.refreshVitals()
+        if (this.isExtension(value)) this.refreshExtension(value)
       })
 
       this.scheduleSeo()
@@ -305,6 +338,8 @@ export function debugBar() {
       this.$watch('activeId', () => {
         this.comparison = null
         this.baselineId = ''
+        // A reader is handed the profile on screen, so it reads again for the new one.
+        this.extensions.forEach((extension) => this.refreshExtension(extension.id))
       })
 
       // On the document, not on the bar: the shortcut has to work while the page has
@@ -321,6 +356,9 @@ export function debugBar() {
       }).filter((entry) => entry.id !== this.profile.id)
 
       if (this.open) this.loadPayloads()
+
+      watchSections((id) => this.startExtension(id))
+        .forEach((id) => this.startExtension(id))
 
       this.scheduleDockConstraint()
     },
@@ -359,10 +397,11 @@ export function debugBar() {
       this.loadError = ''
 
       try {
-        const { profile, payloads } = await fetchProfile(url)
+        const { profile, payloads, views } = await fetchProfile(url)
 
         this.profile = profile
         this.payloads = payloads
+        this.views = views
         this.activeId = id
       } catch (error) {
         this.loadError = String(error.message || error)
@@ -539,6 +578,7 @@ export function debugBar() {
 
       this.profile = this.pageProfile
       this.payloads = {}
+      this.views = {}
       this.activeId = this.pageProfile.id || null
       this.loadPayloads()
     },
@@ -593,7 +633,10 @@ export function debugBar() {
       this.loadError = ''
 
       try {
-        this.payloads = (await fetchProfile(url)).payloads
+        const { payloads, views } = await fetchProfile(url)
+
+        this.payloads = payloads
+        this.views = views
       } catch (error) {
         this.loadError = String(error.message || error)
       } finally {
@@ -986,7 +1029,7 @@ export function debugBar() {
 
     /** @returns {Array<object>} every section with its count resolved */
     get sections() {
-      return enabledSections(this.rootElement()?.dataset.sections)
+      return enabledSections(this.rootElement()?.dataset.sections, this.extensions)
         .map((section) => ({ ...section, count: countFor(section.id, this) }))
     },
 
@@ -1463,6 +1506,11 @@ export function debugBar() {
       // same thing on the live page.
       if (action.filter && action.section === 'seo') {
         this.seoTab = action.filter
+      }
+
+      // A contributed section's findings name the tab that holds their evidence.
+      if (action.filter && this.isExtension(action.section)) {
+        this.extensionTabs = { ...this.extensionTabs, [action.section]: action.filter }
       }
 
       this.select(action.section)
@@ -1984,6 +2032,147 @@ export function debugBar() {
      * @param {string} id
      * @returns {boolean}
      */
+    /**
+     * @param {string} id
+     * @returns {boolean} whether another module added this section
+     */
+    isExtension(id) {
+      return this.extensions.some((extension) => extension.id === id)
+    },
+
+    /**
+     * Once per reader, whenever it registers: start its watch, then read.
+     *
+     * @param {string} id
+     */
+    startExtension(id) {
+      if (!this.isExtension(id) || !this.collects(id)) return
+
+      watchSection(id, () => this.scheduleExtension(id))
+      this.refreshExtension(id)
+    },
+
+    /**
+     * A burst of page changes is one read, a frame later, as with the data layer.
+     *
+     * @param {string} id
+     */
+    scheduleExtension(id) {
+      if (extensionTimers[id]) return
+
+      extensionTimers[id] = setTimeout(() => {
+        delete extensionTimers[id]
+        this.refreshExtension(id)
+      }, 50)
+    },
+
+    /**
+     * Asks the section's reader for its live view. What it throws is shown in the panel,
+     * because a reader that fails quietly is a section that looks empty for no reason.
+     *
+     * @param {string} id
+     * @returns {Promise<void>}
+     */
+    async refreshExtension(id) {
+      if (!hasReader(id) || !this.collects(id)) return
+
+      try {
+        const view = await readSection(id, this.extensionContext(id))
+
+        if (view === null) return
+
+        this.extensionLive = { ...this.extensionLive, [id]: view }
+        this.extensionErrors = { ...this.extensionErrors, [id]: '' }
+      } catch (error) {
+        this.extensionErrors = { ...this.extensionErrors, [id]: String(error?.message || error) }
+      }
+    },
+
+    /**
+     * What a reader is given. Read only: these are the bar's own objects.
+     *
+     * @param {string} id
+     * @returns {object}
+     */
+    extensionContext(id) {
+      const policy = this.valuePolicy
+
+      return {
+        section: id,
+        profile: this.profile,
+        payload: this.payloads[id] || this.profile.sections?.[id]?.payload || {},
+        requests: this.requests.slice(),
+        valuePolicy: policy,
+        clean: (value) => clean(value, policy),
+        loadProfile: (profileId) => {
+          const url = this.profileUrlFor(profileId)
+
+          return url ? fetchJson(url) : Promise.reject(new Error('The bar has no profile URL.'))
+        },
+      }
+    },
+
+    /**
+     * @param {string} id
+     * @returns {import('./extensions.js').View}
+     */
+    extensionView(id) {
+      const server = this.views[id]
+      const live = this.extensionLive[id]
+      const cached = merged.get(id)
+
+      if (cached && cached.server === server && cached.live === live) return cached.view
+
+      const view = mergeViews(server ? normalizeView(server) : null, live || null)
+
+      merged.set(id, { server, live, view })
+
+      return view
+    },
+
+    /**
+     * @param {string} id
+     * @returns {number|null}
+     */
+    extensionCount(id) {
+      return this.extensionView(id).count ?? countFromSummary(this.summaryOf(id))
+    },
+
+    /**
+     * The contributed section in view, shaped for the generic panel.
+     *
+     * @returns {{tabs: Array<object>, tab: string, blocks: Array<object>, error: string, empty: boolean}}
+     */
+    get extension() {
+      const id = this.currentSection.id
+
+      if (!this.isExtension(id)) return { tabs: [], tab: '', blocks: [], error: '', empty: true }
+
+      const view = this.extensionView(id)
+      const active = view.tabs.find((tab) => tab.id === this.extensionTabs[id]) || view.tabs[0]
+
+      return {
+        tabs: view.tabs.length > 1 ? view.tabs : [],
+        tab: active.id,
+        blocks: active.blocks,
+        error: this.extensionErrors[id] || '',
+        empty: view.tabs.every((tab) => tab.blocks.length === 0),
+      }
+    },
+
+    /** @param {string} tab */
+    selectExtensionTab(tab) {
+      this.extensionTabs = { ...this.extensionTabs, [this.currentSection.id]: tab }
+    },
+
+    /**
+     * @param {string} target
+     * @param {boolean} on
+     */
+    highlightExtension(target, on) {
+      highlightTarget(this.currentSection.id, target, on)
+    },
+
     collects(id) {
       return this.sections.some((section) => section.id === id)
     },

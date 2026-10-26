@@ -1235,3 +1235,61 @@ test.describe('the Magewire section', () => {
     expect(await ourAlpineErrors(page)).toEqual([])
   })
 })
+
+test.describe('a section from another module', () => {
+  /**
+   * Needs dev/fixture-section installed. Without it the API has nothing to draw, and these
+   * tests say so rather than pass.
+   *
+   * @param {import('@playwright/test').Page} page
+   */
+  async function openFixture(page) {
+    await openBar(page)
+    test.skip(
+      !(await state(page, (data) => data.isExtension('fixture'))),
+      'needs dev/fixture-section installed'
+    )
+    await state(page, (data) => { data.section = 'fixture' })
+  }
+
+  test('is listed, and draws the stored view and the live reader as one panel', async ({ page }) => {
+    await openFixture(page)
+
+    await waitForState(page, (data) => data.extension.tabs.length === 2)
+    expect(await state(page, (data) => data.extension.tabs.map((tab) => tab.id))).toEqual(['stored', 'live'])
+    await expect(page.locator('.ndb-nav-item', { hasText: 'Fixture' })).toBeVisible()
+
+    // The view was built from the profile it came with, so it names this request.
+    const profileId = await state(page, (data) => data.profile.id)
+    await expect(page.locator('.ndb-extension .ndb-fact-value').first()).toHaveText(profileId)
+    await expect(page.locator('.ndb-extension td', { hasText: /^request$/ })).toBeVisible()
+
+    await page.locator('.ndb-extension .ndb-subtab', { hasText: 'Live' }).click()
+    await waitForState(page, (data) => data.extension.tab === 'live')
+    await expect(page.locator('.ndb-extension .ndb-fact-value').nth(1)).toHaveText(profileId)
+    expect(await ourAlpineErrors(page)).toEqual([])
+  })
+
+  test('reads the page again when its reader says the page changed', async ({ page }) => {
+    await openFixture(page)
+    await waitForState(page, (data) => data.extension.tabs.length === 2)
+
+    const before = await page.evaluate(() => window.__debugBarFixtureReads)
+    await page.evaluate(() => window.dispatchEvent(new Event('debugbar-fixture')))
+
+    await expect.poll(() => page.evaluate(() => window.__debugBarFixtureReads)).toBeGreaterThan(before)
+  })
+
+  test('a row the reader points at is outlined on the page while hovered', async ({ page }) => {
+    await openFixture(page)
+    await state(page, (data) => { data.selectExtensionTab('live') })
+    const row = page.locator('.ndb-extension tr.is-target').first()
+    test.skip(await row.count() === 0, 'this page has no headings to point at')
+
+    await row.dispatchEvent('mouseenter')
+    await expect.poll(() => page.evaluate(() => document.querySelector('h1, h2').style.outline)).toContain('solid')
+
+    await row.dispatchEvent('mouseleave')
+    await expect.poll(() => page.evaluate(() => document.querySelector('h1, h2').style.outline)).not.toContain('solid')
+  })
+})

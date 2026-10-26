@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Siteation\DebugBar\Model\Config\Source;
 
 use Magento\Framework\Data\OptionSourceInterface;
+use Siteation\DebugBar\Model\ContributedSections;
 
 /**
  * The sections a developer can turn off.
@@ -15,30 +16,53 @@ use Magento\Framework\Data\OptionSourceInterface;
  *
  * The ids match the ones the bar names its panels by, because the same setting decides what
  * is collected and what is drawn.
+ *
+ * Sections other modules add are offered after the built in ones, under their own label.
  */
 class Sections implements OptionSourceInterface
 {
+    /**
+     * Also the ids a section from another module may not take.
+     *
+     * @var array<string, string>
+     */
+    public const BUILT_IN = [
+        'timeline' => 'Timeline',
+        'queries' => 'Queries',
+        'blocks' => 'Blocks',
+        'observers' => 'Observers',
+        'events' => 'Events',
+        'cache' => 'Cache',
+        'pagecache' => 'Page cache',
+        'layout' => 'Layout',
+        'plugins' => 'Plugins',
+        'alpine' => 'Alpine',
+        'magewire' => 'Magewire',
+        'seo' => 'SEO',
+        'datalayer' => 'Data layer',
+        'vitals' => 'Web Vitals',
+        'history' => 'History',
+    ];
+
+    public function __construct(private readonly ContributedSections $contributed)
+    {
+    }
+
     /**
      * @return array<int, array{value: string, label: string}>
      */
     public function toOptionArray(): array
     {
-        return [
-            ['value' => 'timeline', 'label' => __('Timeline')->render()],
-            ['value' => 'queries', 'label' => __('Queries')->render()],
-            ['value' => 'blocks', 'label' => __('Blocks')->render()],
-            ['value' => 'observers', 'label' => __('Observers')->render()],
-            ['value' => 'events', 'label' => __('Events')->render()],
-            ['value' => 'cache', 'label' => __('Cache')->render()],
-            ['value' => 'pagecache', 'label' => __('Page cache')->render()],
-            ['value' => 'layout', 'label' => __('Layout')->render()],
-            ['value' => 'plugins', 'label' => __('Plugins')->render()],
-            ['value' => 'alpine', 'label' => __('Alpine')->render()],
-            ['value' => 'magewire', 'label' => __('Magewire')->render()],
-            ['value' => 'seo', 'label' => __('SEO')->render()],
-            ['value' => 'datalayer', 'label' => __('Data layer')->render()],
-            ['value' => 'vitals', 'label' => __('Web Vitals')->render()],
-            ['value' => 'history', 'label' => __('History')->render()],
-        ];
+        $options = [];
+
+        foreach (self::BUILT_IN as $value => $label) {
+            $options[] = ['value' => $value, 'label' => __($label)->render()];
+        }
+
+        foreach ($this->contributed->all() as $id => $section) {
+            $options[] = ['value' => $id, 'label' => $section['label']];
+        }
+
+        return $options;
     }
 }

@@ -21,8 +21,8 @@ class GetSection implements McpToolInterface
     public function description(): string
     {
         return 'Read one section of a profile: request, queries, events, observers, blocks, '
-            . 'cache, pagecache, layout, interception, seo or timeline. Paginated. Ask for the smallest section that '
-            . 'answers the question rather than reading everything.';
+            . 'cache, pagecache, layout, interception, seo, timeline, or one another module adds. '
+            . 'Paginated. Ask for the smallest section that answers the question rather than reading everything.';
     }
 
     public function inputSchema(): array
@@ -33,10 +33,7 @@ class GetSection implements McpToolInterface
                 'profile_id' => ['type' => 'string'],
                 'section' => [
                     'type' => 'string',
-                    'enum' => [
-                        'request', 'queries', 'events', 'observers', 'blocks', 'cache',
-                        'pagecache', 'layout', 'interception', 'seo', 'timeline',
-                    ],
+                    'enum' => $this->profiles->sections(),
                 ],
                 'cursor' => ['type' => 'integer', 'minimum' => 0, 'default' => 0],
                 'limit' => [

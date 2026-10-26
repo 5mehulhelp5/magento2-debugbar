@@ -9,8 +9,10 @@ use Magento\Framework\HTTP\PhpEnvironment\Response as HttpResponse;
 use Magento\Framework\UrlInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Siteation\DebugBar\Model\AdminEditLink;
 use Siteation\DebugBar\Model\Config;
+use Siteation\DebugBar\Model\ContributedSections;
 use Siteation\DebugBar\Model\Redactor;
 use Siteation\DebugBar\Presentation\AssetUrl;
 use Siteation\DebugBar\Presentation\BarInjector;
@@ -36,7 +38,9 @@ class BarInjectorTest extends TestCase
         $adminEditLink->method('forCurrentPage')
             ->willReturn('https://example.test/admin/siteation_debugbar/entity/edit/id/7/?a=1&b=2');
 
-        $this->injector = new BarInjector($assets, $url, $config, $adminEditLink);
+        $contributed = new ContributedSections($this->createStub(LoggerInterface::class), $config);
+
+        $this->injector = new BarInjector($assets, $url, $config, $adminEditLink, $contributed);
     }
 
     #[Test]
@@ -193,6 +197,97 @@ class BarInjectorTest extends TestCase
      * The framework's App\Response\Http needs five collaborators to construct. Its parent
      * already implements App\Response\HttpInterface, which is all the injector asks for.
      */
+    #[Test]
+    public function contributedSectionsAreListedAndTheirScriptsLoadAroundTheBars(): void
+    {
+        $injector = $this->injectorWith(['c365' => [
+            'label' => 'Commerce365 <prices>',
+            'scripts' => [
+                'head' => ['Vendor_Module::js/early.js'],
+                'body' => ['Vendor_Module::js/section.js'],
+            ],
+        ]]);
+        $response = $this->response('<html><head><title>t</title></head><body></body></html>');
+
+        $injector->inject($response, $this->profile());
+        $body = $response->getContent();
+
+        $this->assertStringContainsString(
+            'data-extensions="[{&quot;id&quot;:&quot;c365&quot;,'
+            . '&quot;label&quot;:&quot;Commerce365 &lt;prices&gt;&quot;',
+            $body,
+            'The list travels as an escaped attribute, never as markup.'
+        );
+
+        $early = strpos($body, 'static/js/debugbar-early.js');
+        $sectionEarly = strpos($body, 'static/Vendor_Module::js/early.js');
+        $head = strpos($body, '</head>');
+        $this->assertNotFalse($early);
+        $this->assertNotFalse($sectionEarly);
+        $this->assertTrue(
+            $early < $sectionEarly && $sectionEarly < $head,
+            'A head script registers with the watcher early.js installs, so it comes after it, in the head.'
+        );
+
+        $reader = strpos(
+            $body,
+            '<script type="module" src="https://example.test/static/Vendor_Module::js/section.js" defer>'
+        );
+        $bar = strpos($body, 'static/js/debugbar.js');
+        $this->assertNotFalse($reader);
+        $this->assertTrue(
+            $reader < $bar,
+            'Modules run in document order, so the reader is registered before the bar starts.'
+        );
+        $this->assertStringNotContainsString('<script>', $body, 'Still no inline script.');
+    }
+
+    #[Test]
+    public function aSwitchedOffContributedSectionLoadsNothing(): void
+    {
+        $injector = $this->injectorWith(['c365' => [
+            'label' => 'Commerce365',
+            'scripts' => ['head' => ['Vendor_Module::js/early.js'], 'body' => ['Vendor_Module::js/section.js']],
+        ]], ['queries']);
+        $response = $this->response('<html><head></head><body></body></html>');
+
+        $injector->inject($response, $this->profile());
+
+        $this->assertStringNotContainsString('Vendor_Module', $response->getContent());
+    }
+
+    /**
+     * @param array<string, mixed> $declared
+     * @param list<string> $wanted the Sections setting, empty for all
+     */
+    private function injectorWith(array $declared, array $wanted = []): BarInjector
+    {
+        $assets = $this->createStub(AssetUrl::class);
+        $assets->method('for')->willReturnCallback(
+            static fn (string $file): string => 'https://example.test/static/' . $file
+        );
+        $assets->method('forAsset')->willReturnCallback(
+            static fn (string $asset): string => 'https://example.test/static/' . $asset
+        );
+
+        $url = $this->createStub(UrlInterface::class);
+        $url->method('getUrl')->willReturn('https://example.test/siteation_debugbar/profile/view/');
+
+        $config = $this->createStub(Config::class);
+        $config->method('valuePolicy')->willReturn(Redactor::POLICY_FULL);
+        $config->method('collects')->willReturnCallback(
+            static fn (string $id): bool => $wanted === [] || in_array($id, $wanted, true)
+        );
+
+        return new BarInjector(
+            $assets,
+            $url,
+            $config,
+            $this->createStub(AdminEditLink::class),
+            new ContributedSections($this->createStub(LoggerInterface::class), $config, $declared)
+        );
+    }
+
     private function response(string $body, string $contentType = 'text/html'): HttpResponse
     {
         $response = new HttpResponse();

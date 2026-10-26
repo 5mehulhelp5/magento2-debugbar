@@ -11,6 +11,7 @@ use Magento\Framework\HTTP\PhpEnvironment\Response as ReadableResponse;
 use Magento\Framework\UrlInterface;
 use Siteation\DebugBar\Model\AdminEditLink;
 use Siteation\DebugBar\Model\Config;
+use Siteation\DebugBar\Model\ContributedSections;
 
 /**
  * Adds the bar to HTML responses, and the profile id to every profiled response.
@@ -25,6 +26,9 @@ use Siteation\DebugBar\Model\Config;
  * The value policy rides along as an attribute too. The Alpine section reads live objects
  * out of the page rather than a redacted profile, so the bar has to know the policy at
  * render time to apply it itself.
+ *
+ * Sections other modules add travel the same way: their list as a data attribute, and their
+ * scripts as more external files, only for the sections the store has switched on.
  *
  * Responses that cannot carry a bar still get the header, which is how AJAX, GraphQL and
  * REST requests reach the bar's request list and how an agent correlates a request to its
@@ -67,7 +71,8 @@ class BarInjector
         private readonly AssetUrl $assets,
         private readonly UrlInterface $url,
         private readonly Config $config,
-        private readonly AdminEditLink $adminEditLink
+        private readonly AdminEditLink $adminEditLink,
+        private readonly ContributedSections $contributed
     ) {
     }
 
@@ -166,10 +171,12 @@ class BarInjector
      */
     private function insertHead(string $html): string
     {
-        $script = sprintf(
-            '<script src="%s"></script>',
-            $this->escape($this->assets->for('js/debugbar-early.js'))
-        );
+        // After the bar's own: a section's head script registers with the watcher early.js
+        // installs, and has the same reason to block, the theme's scripts not having run yet.
+        $script = implode('', array_map(
+            fn (string $url): string => sprintf('<script src="%s"></script>', $this->escape($url)),
+            [$this->assets->for('js/debugbar-early.js'), ...$this->contributedScripts('head')]
+        ));
 
         if (preg_match('#</head\s*>#i', $html) !== 1) {
             return $html;
@@ -200,9 +207,10 @@ class BarInjector
             '<%s data-css="%s" data-profile-url="%s"'
             . ' data-value-policy="%s" data-sections="%s"'
             . ' data-history-url="%s" data-compare-url="%s"'
-            . ' data-editor="%s" data-editor-root="%s" data-admin-edit="%s"></%s>'
+            . ' data-editor="%s" data-editor-root="%s" data-admin-edit="%s"'
+            . ' data-extensions="%s"></%s>'
             . '<script type="application/json" id="%s">%s</script>'
-            . '<script type="module" src="%s" defer></script>',
+            . '%s<script type="module" src="%s" defer></script>',
             self::ROOT_TAG,
             $this->escape($this->assets->for('css/debugbar.css')),
             $this->escape($this->profileUrl(self::ID_PLACEHOLDER)),
@@ -217,9 +225,19 @@ class BarInjector
             // Empty on any page that is not a product, a category or a CMS page, and on
             // every page when the SEO section is off.
             $this->escape($this->adminEditLink->forCurrentPage()),
+            $this->escape($this->extensions()),
             self::ROOT_TAG,
             self::DATA_ID,
             $json === false ? '{}' : $json,
+            // Before the bar's own module: modules run in document order, so a section's
+            // reader is registered by the time the bar starts.
+            implode('', array_map(
+                fn (string $url): string => sprintf(
+                    '<script type="module" src="%s" defer></script>',
+                    $this->escape($url)
+                ),
+                $this->contributedScripts('body')
+            )),
             $this->escape($this->assets->for('js/debugbar.js'))
         );
 
@@ -254,6 +272,29 @@ class BarInjector
         }
 
         return [...$profile, 'sections' => $sections, 'lazy' => true];
+    }
+
+    /**
+     * The sections other modules add, as the bar lists them. The bar filters them by the
+     * same data-sections list as its own.
+     */
+    private function extensions(): string
+    {
+        $json = json_encode($this->contributed->definitions(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return $json === false ? '[]' : $json;
+    }
+
+    /**
+     * @param 'head'|'body' $where
+     * @return list<string>
+     */
+    private function contributedScripts(string $where): array
+    {
+        return array_map(
+            fn (string $asset): string => $this->assets->forAsset($asset),
+            $this->contributed->scripts($where)
+        );
     }
 
     private function profileUrl(string $id): string

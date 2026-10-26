@@ -11,7 +11,7 @@ use Magento\Framework\View\DesignInterface;
 use Throwable;
 
 /**
- * Static URLs for the bar's own files.
+ * Static URLs for the bar's own files, and for the scripts of sections other modules add.
  *
  * The theme is passed explicitly rather than left to the asset repository. On a full page
  * cache hit nothing ever initialises the design, so the repository falls back to an empty
@@ -41,18 +41,27 @@ class AssetUrl
 
     public function for(string $file): string
     {
-        return $this->urls[$file] ??= $this->build($file);
+        return $this->forAsset(self::MODULE . $file);
     }
 
-    private function build(string $file): string
+    /**
+     * A file from any module, named the way Magento names one: `Vendor_Module::js/file.js`.
+     * This is how a section from another module gets its scripts onto the page.
+     */
+    public function forAsset(string $asset): string
+    {
+        return $this->urls[$asset] ??= $this->build($asset);
+    }
+
+    private function build(string $asset): string
     {
         try {
-            $url = $this->assetRepository->getUrlWithParams(self::MODULE . $file, $this->params());
+            $url = $this->assetRepository->getUrlWithParams($asset, $this->params());
         } catch (Throwable) {
-            $url = $this->assetRepository->getUrl(self::MODULE . $file);
+            $url = $this->assetRepository->getUrl($asset);
         }
 
-        $version = $this->version($file);
+        $version = $this->version($asset);
 
         if ($version === null) {
             return $url;
@@ -61,9 +70,10 @@ class AssetUrl
         return $url . (str_contains($url, '?') ? '&' : '?') . 'v=' . $version;
     }
 
-    private function version(string $file): ?string
+    private function version(string $asset): ?string
     {
-        $root = $this->registrar->getPath(ComponentRegistrar::MODULE, self::MODULE_NAME);
+        [$module, $file] = array_pad(explode('::', $asset, 2), 2, '');
+        $root = $file === '' ? null : $this->registrar->getPath(ComponentRegistrar::MODULE, $module);
 
         if ($root === null) {
             return null;

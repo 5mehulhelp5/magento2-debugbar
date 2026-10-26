@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.3.0...main
 
+### Added
+
+- Other modules can add a section to the bar.
+  It is declared in their `di.xml` on `Model\ContributedSections`, with a label, a lead and up to two halves:
+  a view built from the stored profile, and a script that reads the live page.
+  Both describe the panel as blocks the bar draws with its own markup, so it stays CSP safe and looks like the rest.
+  A contributed section can be switched off under **Sections** like a built in one, is in the command palette,
+  shows its findings, and can be read with `get_debug_profile_section`.
+  See "A section from another module" in the developer guide.
+
 ## [1.3.0] - 2026-10-26
 
 [1.3.0]: https://github.com/Siteation/magento2-debugbar/compare/1.2.0...1.3.0

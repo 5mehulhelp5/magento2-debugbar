@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Siteation\DebugBar\Presentation;
 
 use Siteation\DebugBar\Analysis\ProfileComparer;
+use Siteation\DebugBar\Model\ContributedSections;
 use Siteation\DebugBar\Model\ProfileStore;
 
 /**
@@ -44,9 +45,21 @@ class McpProfilePresenter
         private readonly ProfileStore $store,
         private readonly ProfileSummary $summary,
         private readonly ProfileComparer $comparer,
+        private readonly ContributedSections $contributed,
         private readonly int $maxItems = 50,
         private readonly int $maxBytes = 100000
     ) {
+    }
+
+    /**
+     * The sections get_debug_profile_section reads: the built in ones, then those other
+     * modules add. A contributed section pages through `payload.items` like any other.
+     *
+     * @return list<string>
+     */
+    public function sections(): array
+    {
+        return array_values(array_unique([...self::SECTIONS, ...$this->contributed->ids()]));
     }
 
     public function maxItems(): int
@@ -95,7 +108,7 @@ class McpProfilePresenter
             return $this->notFound($profileId);
         }
 
-        if (!in_array($section, self::SECTIONS, true) || !isset($profile['sections'][$section])) {
+        if (!in_array($section, $this->sections(), true) || !isset($profile['sections'][$section])) {
             return $this->envelope([
                 'error' => sprintf('Unknown section "%s".', $section),
                 'available_sections' => array_keys($profile['sections'] ?? []),
