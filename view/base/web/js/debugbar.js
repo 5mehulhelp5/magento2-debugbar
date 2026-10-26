@@ -3412,10 +3412,10 @@ const dc = {
   pulse: '<path d="M3 12h3.5l2.5-6 4 12 2.5-6H21"/>',
   grip: '<circle cx="9" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.5" fill="currentColor" stroke="none"/>'
 };
-function q(e, t = "") {
+function q(e, t = "", n = "") {
   return `<svg class="ndb-icon ${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-    aria-hidden="true">${dc[e] || ""}</svg>`;
+    aria-hidden="true" ${n}>${dc[e] || ""}</svg>`;
 }
 function cc(e) {
   return [...uc(e), ...hc(e), ...pc(e)];
@@ -9024,9 +9024,9 @@ ${e ? "" : `  <div class="ndb-stats">
 
     <button type="button" class="ndb-icon-button is-optional" data-ndb-on:click="cycleTheme()"
             data-ndb-bind:title="'Theme: ' + theme + '. Click for the next one.'">
-      <span data-ndb-show="theme === 'system'">${q("monitor")}</span>
-      <span data-ndb-show="theme === 'light'">${q("sun")}</span>
-      <span data-ndb-show="theme === 'dark'">${q("moon")}</span>
+      ${q("monitor", "", `data-ndb-show="theme === 'system'"`)}
+      ${q("sun", "", `data-ndb-show="theme === 'light'"`)}
+      ${q("moon", "", `data-ndb-show="theme === 'dark'"`)}
     </button>
 
     <button type="button" class="ndb-icon-button" data-ndb-on:click="select('findings')"
@@ -9042,8 +9042,8 @@ ${e ? "" : `  <div class="ndb-stats">
     ${e ? `
     <button type="button" class="ndb-icon-button" data-ndb-on:click="toggleMaximised()"
             data-ndb-bind:title="maximised ? 'Restore' : 'Maximise'">
-      <span data-ndb-show="!maximised">${q("expand")}</span>
-      <span data-ndb-show="maximised">${q("collapse")}</span>
+      ${q("expand", "", 'data-ndb-show="!maximised"')}
+      ${q("collapse", "", 'data-ndb-show="maximised"')}
     </button>
     <button type="button" class="ndb-icon-button" data-ndb-on:click="closeInspector()"
             title="Minimise">

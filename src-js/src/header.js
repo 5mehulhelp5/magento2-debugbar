@@ -111,9 +111,9 @@ ${sheet ? '' : `  <div class="ndb-stats">
 
     <button type="button" class="ndb-icon-button is-optional" data-ndb-on:click="cycleTheme()"
             data-ndb-bind:title="'Theme: ' + theme + '. Click for the next one.'">
-      <span data-ndb-show="theme === 'system'">${icon('monitor')}</span>
-      <span data-ndb-show="theme === 'light'">${icon('sun')}</span>
-      <span data-ndb-show="theme === 'dark'">${icon('moon')}</span>
+      ${icon('monitor', '', `data-ndb-show="theme === 'system'"`)}
+      ${icon('sun', '', `data-ndb-show="theme === 'light'"`)}
+      ${icon('moon', '', `data-ndb-show="theme === 'dark'"`)}
     </button>
 
     <button type="button" class="ndb-icon-button" data-ndb-on:click="select('findings')"
@@ -129,8 +129,8 @@ ${sheet ? '' : `  <div class="ndb-stats">
     ${sheet ? `
     <button type="button" class="ndb-icon-button" data-ndb-on:click="toggleMaximised()"
             data-ndb-bind:title="maximised ? 'Restore' : 'Maximise'">
-      <span data-ndb-show="!maximised">${icon('expand')}</span>
-      <span data-ndb-show="maximised">${icon('collapse')}</span>
+      ${icon('expand', '', 'data-ndb-show="!maximised"')}
+      ${icon('collapse', '', 'data-ndb-show="maximised"')}
     </button>
     <button type="button" class="ndb-icon-button" data-ndb-on:click="closeInspector()"
             title="Minimise">

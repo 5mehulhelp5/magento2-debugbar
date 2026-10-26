@@ -28,12 +28,16 @@ export const icons = {
 }
 
 /**
+ * Attributes go on the svg itself, so a toggle between icons needs no wrapper. A wrapping
+ * span is inline, and sat its icon on the text baseline inside the button's grid.
+ *
  * @param {string} name
  * @param {string} extra
+ * @param {string} attributes
  * @returns {string}
  */
-export function icon(name, extra = '') {
+export function icon(name, extra = '', attributes = '') {
   return `<svg class="ndb-icon ${extra}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-    aria-hidden="true">${icons[name] || ''}</svg>`
+    aria-hidden="true" ${attributes}>${icons[name] || ''}</svg>`
 }
