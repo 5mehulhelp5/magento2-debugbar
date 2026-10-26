@@ -96,6 +96,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The collapsed bar fits narrow screens. As the bar gets narrower it hides peak memory,
+  mode, queries and duration in that order, then the search and theme buttons. Each of
+  these is still shown in the open inspector. Before, the stats never shrank, so the path
+  disappeared first and then the window controls were pushed off the bar. The breakpoints
+  are container queries on the bar itself, since its width is capped at 1024 pixels and
+  no longer follows the window above that.
+
 - In the admin, the bar no longer stores a profile of its own requests
   ([#30](https://github.com/Siteation/magento2-debugbar/issues/30)). Opening a profile,
   the history or a comparison used to save one more profile each time and push the real

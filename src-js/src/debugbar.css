@@ -120,6 +120,7 @@
   overflow: hidden;
   cursor: pointer;
   transition: border-color 120ms ease;
+  container: ndb-dock / inline-size;
 }
 
 /* The whole dock opens the inspector, so the whole dock reacts and its open button says so. */
@@ -324,6 +325,7 @@
 .ndb-request-meta {
   display: flex;
   gap: 8px;
+  overflow: hidden;
   font-size: 13px;
   color: var(--ndb-dim);
   white-space: nowrap;
@@ -455,12 +457,35 @@
   color: var(--ndb-on-bad);
 }
 
-@media (max-width: 900px) {
-  .ndb-stat.is-secondary { display: none; }
+/*
+ * The dock sheds what the sheet repeats, least useful first, so the path keeps room and the
+ * window controls never leave the dock. Container queries rather than media queries: the
+ * dock stops growing at 1024 pixels, so the window width says little about its own.
+ * Breakpoints are the measured widths of what stays, plus a path that still reads.
+ */
+@container ndb-dock (width < 980px) {
+  .ndb-stat.is-peak { display: none; }
 }
 
-@media (max-width: 640px) {
-  .ndb-stat .ndb-stat-key { display: none; }
+@container ndb-dock (width < 880px) {
+  .ndb-stat.is-mode { display: none; }
+}
+
+@container ndb-dock (width < 760px) {
+  .ndb-stat.is-queries { display: none; }
+}
+
+@container ndb-dock (width < 600px) {
+  .ndb-stats { display: none; }
+}
+
+@container ndb-dock (width < 480px) {
+  .ndb-icon-button.is-optional,
+  .ndb-status-phrase { display: none; }
+}
+
+@container ndb-dock (width < 360px) {
+  .ndb-request-meta .ndb-dim { display: none; }
 }
 
 .ndb-pill.is-bad {
