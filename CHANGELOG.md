@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.4.0...main
+[Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.4.1...main
+
+## [1.4.1] - 2026-10-27
+
+[1.4.1]: https://github.com/Siteation/magento2-debugbar/compare/1.4.0...1.4.1
+
+### Fixed
+
+- A page no longer crashes while the bar collects when an event is dispatched with an `event` key in its data,
+  as Nebula's admin grids do (`nebula_grid_data_*`). Magento puts that value on the observer in place of its own
+  event, and the observer timer called `getName()` on it. The observer is now timed under the name the event
+  was dispatched with.
 
 ## [1.4.0] - 2026-10-27
 
