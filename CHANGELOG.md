@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.3.0...main
+[Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.4.0...main
+
+## [1.4.0] - 2026-10-27
+
+[1.4.0]: https://github.com/Siteation/magento2-debugbar/compare/1.3.0...1.4.0
 
 ### Added
 
