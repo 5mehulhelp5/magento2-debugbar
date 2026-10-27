@@ -38,10 +38,12 @@ class ManagerPlugin
         }
 
         $startedAt = microtime(true);
+        $this->events->enterDispatch($eventName);
 
         try {
             return $proceed($eventName, $data);
         } finally {
+            $this->events->leaveDispatch();
             $this->manager->quietly('events', fn () => $this->events->recordDispatch(
                 $eventName,
                 (microtime(true) - $startedAt) * 1000

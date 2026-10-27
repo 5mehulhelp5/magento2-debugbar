@@ -26,6 +26,14 @@ class EventCollector extends AbstractCollector
 
     private int $dispatchCount = 0;
 
+    /**
+     * The events being dispatched right now, innermost last. Not part of the profile and
+     * not reset with it: a dispatch can still be running when a profile begins.
+     *
+     * @var list<string>
+     */
+    private array $dispatching = [];
+
     public function label(): string
     {
         return 'Events';
@@ -57,6 +65,25 @@ class EventCollector extends AbstractCollector
 
         $this->events[$name]['count']++;
         $this->events[$name]['duration_ms'] = round($this->events[$name]['duration_ms'] + $durationMs, 3);
+    }
+
+    public function enterDispatch(string $name): void
+    {
+        $this->dispatching[] = $name;
+    }
+
+    public function leaveDispatch(): void
+    {
+        array_pop($this->dispatching);
+    }
+
+    /**
+     * The name of the innermost event being dispatched, for an observer whose own event
+     * object no longer carries it.
+     */
+    public function dispatching(): ?string
+    {
+        return $this->dispatching === [] ? null : $this->dispatching[array_key_last($this->dispatching)];
     }
 
     public function recordObserved(string $name): void

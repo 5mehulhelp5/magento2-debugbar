@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Siteation\DebugBar\Plugin\Event;
 
 use Closure;
+use Magento\Framework\Event;
 use Magento\Framework\Event\InvokerInterface;
 use Magento\Framework\Event\Observer;
 use Siteation\DebugBar\Collector\EventCollector;
@@ -40,7 +41,12 @@ class InvokerPlugin
 
         $instance = (string) ($configuration['instance'] ?? '');
         $name = (string) ($configuration['name'] ?? $instance);
-        $eventName = (string) $observer->getEvent()->getName();
+        // Dispatch data with an `event` key replaces the Magento event on the observer, as
+        // Nebula's grid events do; the dispatch plugin still knows the name then.
+        $event = $observer->getEvent();
+        $eventName = $event instanceof Event
+            ? (string) $event->getName()
+            : (string) $this->events->dispatching();
 
         $this->manager->quietly('events', fn () => $this->events->recordObserved($eventName));
 
