@@ -7,18 +7,18 @@ For working on Siteation_DebugBar itself. If you want to use it, read the
 
 | | |
 | --- | --- |
-| `Api/` | `CollectorInterface`, `RuleInterface`, `McpToolInterface` |
+| `Api/` | `CollectorInterface`, `RuleInterface`, `McpToolInterface`, `SectionViewInterface` |
 | `Plugin/` | The entry hook and the seven collection hooks |
 | `Collector/` | Ten collectors and the abstract they share |
 | `Analysis/` | Findings, rules, the query analyzer, the timeline, the comparer |
-| `Model/` | Config, the gate, the access key, the store, the redactor, the layout file lookup, SEO sources, the admin edit link |
+| `Model/` | Config, the gate, the access key, the store, the redactor, the layout file lookup, SEO sources, the admin edit link, the sections other modules add |
 | `Presentation/` | Bar injection, the markdown report, the MCP presenter |
 | `Mcp/` | JSON-RPC server and six tools |
 | `Controller/` | `Profile/`: `view`, `history`, `compare`; `Adminhtml/Entity/Edit`: the admin edit link |
 | `Console/` | `siteation:debugbar:mcp`, `siteation:debugbar:report` |
 | `src-js/` | Alpine sources for the bar; build output is committed |
 | `view/base/web/` | The committed build output |
-| `dev/` | `smoke`, an HTTP test over a running store, and `docs`, the guide renderer |
+| `dev/` | `smoke`, an HTTP test over a running store, `docs`, the guide renderer, and `fixture-section`, a module that adds a section for the browser suite |
 
 PHP is edited in place. The package installs as a Composer path symlink, so nothing needs
 reinstalling after an edit.
@@ -90,6 +90,98 @@ binding that throws as soon as it is in the list. That walk does not wait for th
 rows or look at them, so a section that renders empty passes it. Give a new section a test of
 its own that waits for its items and checks what they show. A section that reads something
 the test store lacks, as Magewire does, gets a stand-in installed before the page's scripts.
+
+## A section from another module
+
+Everything above is for sections that ship with the bar. Another module, such as an
+integration with an ERP, adds its own without touching this package: a collector, rules
+and MCP tools register through the same DI arrays as the built in ones, and the panel is
+declared on `Model\ContributedSections`.
+
+```xml
+<type name="Siteation\DebugBar\Model\ContributedSections">
+    <arguments>
+        <argument name="sections" xsi:type="array">
+            <item name="c365" xsi:type="array">
+                <item name="label" xsi:type="string" translate="true">Commerce365</item>
+                <item name="lead" xsi:type="string" translate="true">What the page was priced with.</item>
+                <item name="graded" xsi:type="boolean">true</item>
+                <item name="view" xsi:type="object">Vendor\Module\Presentation\PricesView</item>
+                <item name="scripts" xsi:type="array">
+                    <item name="head" xsi:type="array">
+                        <item name="events" xsi:type="string">Vendor_Module::js/early.js</item>
+                    </item>
+                    <item name="body" xsi:type="array">
+                        <item name="reader" xsi:type="string">Vendor_Module::js/section.js</item>
+                    </item>
+                </item>
+            </item>
+        </argument>
+    </arguments>
+</type>
+```
+
+The item name is the section id: lower case letters, digits and underscores, and not one the
+bar already uses. A collector feeding the section is registered on `ProfileManager` under
+the same id, because that id is what the **Sections** setting switches. Only `label` is
+required. A declaration that is wrong is left out and logged rather than breaking the bar.
+
+**The bar cannot draw another module's markup.** It runs Alpine's CSP build in a shadow root,
+so a template with expressions of its own would neither evaluate nor be safe. A section
+describes its panel as blocks instead, and the bar draws them with its own markup and
+styles. A panel is `{blocks: [...]}`, or `{tabs: [{id, label, count, blocks}]}` for sub
+views, with an optional `count` for the sidebar badge.
+
+| Block | Fields |
+| --- | --- |
+| `heading` | `text` |
+| `note` | `text`, `tone` |
+| `list` | `items`, strings |
+| `facts` | `items`: `label`, `value`, `tone`, `mono` |
+| `table` | `columns`: a key, or `key`, `label`, `num`, `mono`; `rows`: objects by key or arrays in column order, a cell either a value or `{text, tone}`, a row's `_tone`, and `_target` for the outline; `empty` |
+| `code` | `text`, `language` (`json`, `sql` or `javascript`) |
+| `json` | `value`, drawn as highlighted JSON |
+
+A tone is `ok`, `warn` or `bad`. Every value is drawn as text. A table is cut at 500 rows and
+says how many it left out, and a block type the bar does not know is drawn as a note saying
+so.
+
+**Two halves, either optional.** `view` is a `SectionViewInterface` that builds blocks from
+the stored profile. It runs when `profile/view` is read, not when the profile is written, so
+stored profiles stay data and a changed view applies to them too. It receives the whole
+profile, so a section can be drawn from its own collector, from the built in ones, or both.
+
+The other half reads the live page. A script listed under `body` loads as a module before the
+bar's own, and registers a reader through the watcher `early.js` installs:
+
+```js
+window.__siteationDebugBar.registerSection({
+  id: 'c365',
+  read(context) { return { tabs: [...] } },
+  watch(refresh) { window.addEventListener('update-prices', refresh) },
+  highlight(target, on) { /* outline what the row's _target names */ },
+})
+```
+
+`read` may return a promise. Its `context` holds the profile on screen, this section's
+payload, the requests the page made since it loaded, the value policy and a `clean` that
+applies it, and `loadProfile(id)`, which fetches another stored profile with its views. Treat
+all of it as read only. `read` is called when the section is opened, when another profile is
+shown, and a frame after each `refresh`. What it throws is shown in the panel. Both halves
+are drawn as one panel: tabs with the same id merge, the server's blocks first, and the live
+count wins over the server's.
+
+A script listed under `head` loads right after `early.js`, before the theme's scripts, for
+anything that has to be in place first, as the data layer recorder is. Both lists take
+`Vendor_Module::path.js` assets from `view/base/web`, and neither is loaded while the section
+is switched off.
+
+**Findings and MCP come along.** A rule whose finding names the section shows it at the top
+of the panel, and its `action.filter` names the tab to open. `get_debug_profile_section`
+reads any contributed section and pages through its `payload.items`.
+
+`dev/fixture-section` is a module that uses all of it, for the browser suite. Install it to
+run the three tests that cover this; without it they skip.
 
 ## Adding a rule
 
@@ -266,9 +358,9 @@ for out of the response rather than pushing it over.
 vendor/bin/phpcs  --standard=<pkg>/phpcs.xml.dist <pkg>
 vendor/bin/phpstan analyse -c <pkg>/phpstan.neon.dist
 vendor/bin/phpunit --configuration <pkg>/phpunit.xml.dist \
-    --bootstrap vendor/autoload.php                            # 345 tests
+    --bootstrap vendor/autoload.php                            # 360 tests
 <pkg>/dev/smoke https://your-store.test admin                  # 31 checks over HTTP
-cd <pkg>/src-js && npm test                                    # 168, no store needed
+cd <pkg>/src-js && npm test                                    # 193, no store needed
 cd <pkg>/src-js && npm run test:browser                        # 34, needs the store up
 ```
 

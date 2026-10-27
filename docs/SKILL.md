@@ -24,7 +24,8 @@ Every profile is already redacted and bounded. The tools are read only and chang
    request and it is small.
 2. Then the smallest section that tests that conclusion, with `get_debug_profile_section`.
    It serves one of `request`, `queries`, `events`, `observers`, `blocks`, `cache`,
-   `pagecache`, `layout`, `interception`, `seo` or `timeline`, a page at a time: pass
+   `pagecache`, `layout`, `interception`, `seo` or `timeline`, plus any section another
+   installed module adds (the tool's `section` enum lists them), a page at a time: pass
    `limit`, and feed the `next_cursor` it returns back as `cursor` to read the next page.
    `timeline` is the whole request in order, which is the fastest way to see where the time
    went when no single section stands out. For SEO, `get_debug_seo` is the better read.

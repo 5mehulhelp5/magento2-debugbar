@@ -26,9 +26,31 @@
     alpineReady: false,
     pushes: [],
     onPush: null,
+    sections: [],
+    onSection: null,
   }
 
   window.__siteationDebugBar = state
+
+  /**
+   * Where a section another module adds registers the part of it that reads the live page.
+   * Here rather than in the bar, so the module's script can run before the bar or after
+   * it: what arrives early is buffered like the requests are. A second registration under
+   * the same id replaces the first.
+   *
+   * @param {{id: string, read: Function}} reader
+   * @returns {boolean} whether it was taken
+   */
+  state.registerSection = function (reader) {
+    if (!reader || typeof reader.id !== 'string' || typeof reader.read !== 'function') return false
+
+    state.sections = state.sections.filter(function (seen) { return seen.id !== reader.id })
+    state.sections.push(reader)
+
+    if (typeof state.onSection === 'function') state.onSection(reader)
+
+    return true
+  }
 
   function report(id, method, url, status, label) {
     // No URL filter for the bar's own endpoints: RequestEligibility::isOwnRequest excludes

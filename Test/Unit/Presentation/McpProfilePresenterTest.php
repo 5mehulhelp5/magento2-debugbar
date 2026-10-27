@@ -6,8 +6,11 @@ namespace Siteation\DebugBar\Test\Unit\Presentation;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Siteation\DebugBar\Analysis\ProfileComparer;
 use Siteation\DebugBar\Analysis\QueryAnalyzer;
+use Siteation\DebugBar\Model\Config;
+use Siteation\DebugBar\Model\ContributedSections;
 use Siteation\DebugBar\Model\ProfileStore;
 use Siteation\DebugBar\Presentation\McpProfilePresenter;
 use Siteation\DebugBar\Presentation\ProfileSummary;
@@ -81,7 +84,8 @@ class McpProfilePresenterTest extends TestCase
         $presenter = new McpProfilePresenter(
             $this->store(null),
             new ProfileSummary(),
-            $this->comparer()
+            $this->comparer(),
+            $this->noContributions()
         );
 
         $result = $presenter->section('missing', 'queries', 0, 10);
@@ -250,6 +254,7 @@ class McpProfilePresenterTest extends TestCase
             $this->store($profile),
             new ProfileSummary(),
             $this->comparer(),
+            $this->noContributions(),
             50,
             $maxBytes
         );
@@ -263,7 +268,7 @@ class McpProfilePresenterTest extends TestCase
         $store = $this->createStub(ProfileStore::class);
         $store->method('recent')->willReturn($profiles);
 
-        return new McpProfilePresenter($store, new ProfileSummary(), $this->comparer());
+        return new McpProfilePresenter($store, new ProfileSummary(), $this->comparer(), $this->noContributions());
     }
 
     /**
@@ -275,6 +280,11 @@ class McpProfilePresenterTest extends TestCase
         $store->method('get')->willReturn($profile);
 
         return $store;
+    }
+
+    private function noContributions(): ContributedSections
+    {
+        return new ContributedSections($this->createStub(LoggerInterface::class), $this->createStub(Config::class));
     }
 
     private function comparer(): ProfileComparer

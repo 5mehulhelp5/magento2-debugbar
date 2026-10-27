@@ -36,7 +36,7 @@ export function commandsFor(state) {
  * @returns {Array<Command>}
  */
 function sectionCommands(state) {
-  return SECTIONS.map((section) => {
+  return [...SECTIONS, ...(state.extensions || [])].map((section) => {
     const count = countFor(section.id, state)
 
     return {

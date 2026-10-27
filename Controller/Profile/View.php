@@ -10,6 +10,7 @@ use Magento\Framework\Controller\Result\Json;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\Controller\Result\RawFactory;
 use Magento\Framework\Controller\ResultInterface;
+use Siteation\DebugBar\Model\ContributedSections;
 use Siteation\DebugBar\Model\ProfileStore;
 use Siteation\DebugBar\Model\RequestEligibility;
 use Siteation\DebugBar\Presentation\ProfileReport;
@@ -35,7 +36,8 @@ class View implements HttpGetActionInterface
         private readonly RawFactory $rawFactory,
         private readonly ProfileStore $store,
         private readonly RequestEligibility $eligibility,
-        private readonly ProfileReport $report
+        private readonly ProfileReport $report,
+        private readonly ContributedSections $contributed
     ) {
     }
 
@@ -69,7 +71,9 @@ class View implements HttpGetActionInterface
                 ->setContents($this->report->render($profile));
         }
 
-        return $result->setData($profile);
+        // Only here, for the bar. The markdown above and the MCP tools read the data, and a
+        // view is how one module would like that data drawn.
+        return $result->setData($this->contributed->withViews($profile));
     }
 
     private function stringParam(string $name): string

@@ -27,16 +27,22 @@ export async function fetchJson(url) {
 }
 
 /**
+ * A section another module adds may carry a `view` beside its payload, which the server
+ * built for the bar to draw. See extensions.js.
+ *
  * @param {string} url
- * @returns {Promise<{profile: object, payloads: Record<string, object>}>}
+ * @returns {Promise<{profile: object, payloads: Record<string, object>, views: Record<string, object>}>}
  */
 export async function fetchProfile(url) {
   const profile = await fetchJson(url)
   const payloads = {}
+  const views = {}
 
   Object.entries(profile.sections || {}).forEach(([key, section]) => {
     payloads[key] = section.payload || {}
+
+    if (section.view) views[key] = section.view
   })
 
-  return { profile, payloads }
+  return { profile, payloads, views }
 }

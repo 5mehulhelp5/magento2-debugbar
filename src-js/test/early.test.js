@@ -174,3 +174,37 @@ test('the buffer keeps the most recent pushes', () => {
   assert.equal(pushes[0].value.i, 10)
   assert.equal(page.run('dataLayer.length'), 310, 'the page keeps everything; only the copy is bounded')
 })
+
+test('a section reader registered before the bar is kept until the bar asks for it', () => {
+  const page = browser()
+
+  const taken = page.run("__siteationDebugBar.registerSection({id: 'c365', read() { return {} }})")
+
+  assert.equal(taken, true)
+  assert.deepEqual(JSON.parse(page.run('JSON.stringify(__siteationDebugBar.sections.map((reader) => reader.id))')), ['c365'])
+})
+
+test('a reader registered after the bar is handed straight to it, and replaces one of the same id', () => {
+  const page = browser()
+
+  page.run(`
+    window.handed = []
+    __siteationDebugBar.registerSection({id: 'c365', read() { return 1 }})
+    __siteationDebugBar.onSection = (reader) => handed.push(reader.id)
+    __siteationDebugBar.registerSection({id: 'c365', read() { return 2 }})
+  `)
+
+  assert.deepEqual(JSON.parse(page.run('JSON.stringify(handed)')), ['c365'])
+  assert.equal(page.run('__siteationDebugBar.sections.length'), 1)
+  assert.equal(page.run('__siteationDebugBar.sections[0].read()'), 2)
+})
+
+test('something that is not a reader is refused rather than kept', () => {
+  const page = browser()
+
+  for (const attempt of ['null', "{id: 'c365'}", "{read() {}}", "{id: 7, read() {}}"]) {
+    assert.equal(page.run(`__siteationDebugBar.registerSection(${attempt})`), false, attempt)
+  }
+
+  assert.equal(page.run('__siteationDebugBar.sections.length'), 0)
+})

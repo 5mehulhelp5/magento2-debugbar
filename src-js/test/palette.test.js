@@ -204,3 +204,13 @@ test('the palette loop variables do not shadow a component property', () => {
     )
   })
 })
+
+test('a section another module adds is reachable too, with its count', () => {
+  const commands = commandsFor(state({
+    extensions: [{ id: 'c365', label: 'Commerce365' }],
+    extensionCount: (id) => (id === 'c365' ? 4 : null),
+  }))
+
+  assert.equal(byId(commands, 'section:c365').label, 'Commerce365')
+  assert.equal(byId(commands, 'section:c365').hint, '4')
+})

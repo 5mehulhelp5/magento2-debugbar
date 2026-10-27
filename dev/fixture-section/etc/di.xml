@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <!-- One section with both halves: a view built from the stored profile, and a reader of the live page -->
+    <type name="Siteation\DebugBar\Model\ContributedSections">
+        <arguments>
+            <argument name="sections" xsi:type="array">
+                <item name="fixture" xsi:type="array">
+                    <item name="label" xsi:type="string">Fixture</item>
+                    <item name="lead" xsi:type="string">A section from another module, for the browser suite.</item>
+                    <item name="view" xsi:type="object">Siteation\DebugBarFixture\Presentation\FixtureView</item>
+                    <item name="scripts" xsi:type="array">
+                        <item name="body" xsi:type="array">
+                            <item name="reader" xsi:type="string">Siteation_DebugBarFixture::js/fixture-section.js</item>
+                        </item>
+                    </item>
+                </item>
+            </argument>
+        </arguments>
+    </type>
+</config>

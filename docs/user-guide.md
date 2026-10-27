@@ -129,7 +129,8 @@ collected either, so turning off Blocks on a page that renders four hundred of t
 the request you are measuring cheaper as well as the panel quieter. Findings and Overview
 are always on. Under **Sections**, select the ones to keep; selecting none keeps them all. A
 store that saved a list keeps it, so a section added in a later version stays off there until
-you select it.
+you select it. Sections another module adds to the bar are in the same list, after the bar's
+own.
 
 ### Findings
 
