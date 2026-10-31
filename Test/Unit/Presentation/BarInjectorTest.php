@@ -155,6 +155,90 @@ class BarInjectorTest extends TestCase
     }
 
     #[Test]
+    public function aBodyCloseInsideScriptDataIsNotTheDocumentClose(): void
+    {
+        // Inert as long as nothing writes into it. The bar's own </script> landing in here
+        // would close the island early and turn the image into markup.
+        $island = '<script type="application/json">{"q":"</body><img src=x onerror=probe()>"}</script>';
+        $response = $this->response('<html><head></head><body>' . $island . '<p>Page</p></body></html>');
+
+        $this->injector->inject($response, $this->profile());
+
+        $body = $response->getContent();
+        $this->assertStringContainsString($island, $body, 'The island must reach the browser untouched.');
+        $this->assertGreaterThan(strpos($body, '<p>Page</p>'), strpos($body, '<siteation-debugbar'));
+        $this->assertStringEndsWith('</script></body></html>', $body);
+    }
+
+    #[Test]
+    public function aBrowserFindsNoMarkupInTheIslandAfterInjection(): void
+    {
+        if (!class_exists(\Dom\HTMLDocument::class)) {
+            $this->markTestSkipped('The HTML5 parser arrived in PHP 8.4.');
+        }
+
+        $island = '<script type="application/json">{"q":"</body><img src=x onerror=probe()>"}</script>';
+        $response = $this->response('<html><head></head><body>' . $island . '</body></html>');
+
+        $this->injector->inject($response, $this->profile());
+
+        $document = \Dom\HTMLDocument::createFromString($response->getContent(), LIBXML_NOERROR);
+        $this->assertCount(0, $document->querySelectorAll('img'), 'The island turned into markup.');
+        $this->assertCount(1, $document->querySelectorAll('siteation-debugbar'));
+    }
+
+    #[Test]
+    public function aHeadCloseInsideAHeadScriptIsNotTheHeadClose(): void
+    {
+        $island = '<script type="text/x-magento-init">{"q":"</head><img src=x onerror=probe()>"}</script>';
+        $response = $this->response('<html><head>' . $island . '<title>t</title></head><body></body></html>');
+
+        $this->injector->inject($response, $this->profile());
+
+        $body = $response->getContent();
+        $this->assertStringContainsString($island, $body);
+        $this->assertGreaterThan(strpos($body, '<title>t</title>'), strpos($body, 'debugbar-early.js'));
+    }
+
+    #[Test]
+    public function closingTagsInCommentsStylesAndTitlesAreSkipped(): void
+    {
+        $response = $this->response(
+            '<html><head><title>a </head> b</title><style>/* </body> */</style></head>'
+            . '<body><title-bar>x</title-bar><!-- </body> --><textarea></body></textarea></BODY ></html>'
+        );
+
+        $this->injector->inject($response, $this->profile());
+
+        $body = $response->getContent();
+        $this->assertStringContainsString('<title>a </head> b</title><style>/* </body> */</style><script', $body);
+        $this->assertStringContainsString('<!-- </body> --><textarea></body></textarea><siteation-debugbar', $body);
+        $this->assertStringEndsWith('</script></BODY ></html>', $body, 'Case and whitespace still close it.');
+    }
+
+    #[Test]
+    public function aCloseTagOnlyInsideScriptDataIsNoBodyAtAll(): void
+    {
+        $page = '<html><head></head><script>var s = "</body>";</script></html>';
+        $response = $this->response($page);
+
+        $this->injector->inject($response, $this->profile());
+
+        $this->assertSame($page, $response->getContent());
+    }
+
+    #[Test]
+    public function aLargeInlineScriptStillGetsTheBar(): void
+    {
+        $script = '<script>' . str_repeat('var a = "x";', 200000) . '</script>';
+        $response = $this->response('<html><head>' . $script . '</head><body>' . $script . '</body></html>');
+
+        $this->injector->inject($response, $this->profile());
+
+        $this->assertStringContainsString($script . '<siteation-debugbar', $response->getContent());
+    }
+
+    #[Test]
     public function itSurvivesBackslashesInThePayload(): void
     {
         $response = $this->response('<html><head></head><body></body></html>');

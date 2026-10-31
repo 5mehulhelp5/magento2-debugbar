@@ -67,6 +67,17 @@ class BarInjector
      */
     private const ID_PLACEHOLDER = '__PROFILE_ID__';
 
+    /**
+     * The elements whose content is not markup.
+     *
+     * A page is free to carry the text "</body>" inside a script: a JSON island holding what a
+     * visitor typed is inert for as long as nothing writes into it. The bar's markup ends in
+     * </script>, so inserting it there would close that script early and hand the rest of the
+     * island to the HTML parser. These, and comments, are stepped over whole, and only a
+     * closing tag outside all of them is the document's own.
+     */
+    private const NOT_MARKUP = 'script|style|textarea|title|noscript|template|iframe|noembed|noframes|xmp';
+
     public function __construct(
         private readonly AssetUrl $assets,
         private readonly UrlInterface $url,
@@ -161,7 +172,7 @@ class BarInjector
             return false;
         }
 
-        return preg_match('#</body\s*>#i', (string) $response->getContent()) === 1;
+        return $this->closingTag((string) $response->getContent(), 'body') !== null;
     }
 
     /**
@@ -178,19 +189,9 @@ class BarInjector
             [$this->assets->for('js/debugbar-early.js'), ...$this->contributedScripts('head')]
         ));
 
-        if (preg_match('#</head\s*>#i', $html) !== 1) {
-            return $html;
-        }
+        $offset = $this->closingTag($html, 'head');
 
-        // ?? and not a cast: on a PCRE failure the return is null, and casting it hands
-        // back an empty string as the whole document. Every other failure in this module
-        // costs the bar; this one would cost the page.
-        return preg_replace_callback(
-            '#</head\s*>#i',
-            static fn (array $matches): string => $script . $matches[0],
-            $html,
-            1
-        ) ?? $html;
+        return $offset === null ? $html : substr_replace($html, $script, $offset, 0);
     }
 
     /**
@@ -241,15 +242,57 @@ class BarInjector
             $this->escape($this->assets->for('js/debugbar.js'))
         );
 
-        // preg_replace would read the backslashes in the payload, PHP class names above
-        // all, as escape sequences in the replacement and corrupt the JSON. A callback
-        // hands the replacement back untouched.
-        return preg_replace_callback(
-            '#</body\s*>#i',
-            static fn (array $matches): string => $markup . $matches[0],
-            $html,
-            1
-        ) ?? $html;
+        $offset = $this->closingTag($html, 'body');
+
+        return $offset === null ? $html : substr_replace($html, $markup, $offset, 0);
+    }
+
+    /**
+     * The byte offset of the document's own closing tag, or null when there is none.
+     *
+     * The head takes the first and the body the last. Whatever a page lets a visitor write
+     * sits inside the document, so the real </body> is the one nothing follows, and the real
+     * </head> is the one nothing precedes.
+     *
+     * A walk rather than one pattern with a lazy match per element: an inline script of a
+     * megabyte or two is ordinary in a theme, and matching across it runs into PCRE's
+     * backtrack limit, which would cost the bar on exactly the heavy pages it is for. An
+     * element or comment left open runs to the end, as it does in a browser.
+     *
+     * @param 'head'|'body' $tag
+     */
+    private function closingTag(string $html, string $tag): ?int
+    {
+        // The lookahead, not \b: <title-bar> is a custom element, not a title.
+        $next = '#<!--|<(' . self::NOT_MARKUP . ')(?=[\\s/>])[^>]*>|(</' . $tag . '\\s*>)#i';
+        $flags = PREG_OFFSET_CAPTURE | PREG_UNMATCHED_AS_NULL;
+        $found = null;
+        $offset = 0;
+
+        while (($matched = preg_match($next, $html, $match, $flags, $offset)) === 1) {
+            [$text, $at] = $match[0];
+            $offset = $at + strlen((string) $text);
+
+            if (isset($match[2][0])) {
+                if ($tag === 'head') {
+                    return $at;
+                }
+
+                $found = $at;
+
+                continue;
+            }
+
+            $close = isset($match[1][0]) ? '#</' . $match[1][0] . '[\\s/>]#i' : '#-->#';
+
+            if (preg_match($close, $html, $end, PREG_OFFSET_CAPTURE, $offset) !== 1) {
+                break;
+            }
+
+            $offset = $end[0][1] + strlen($end[0][0]);
+        }
+
+        return $matched === false ? null : $found;
     }
 
     /**
