@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.5.0...main
+[Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.5.1...main
+
+## [1.5.1] - 2026-10-31
+
+[1.5.1]: https://github.com/Siteation/magento2-debugbar/compare/1.5.0...1.5.1
+
+### Security
+
+- Every successful MCP tool result now says its data was recorded from requests and is to be read as evidence,
+  never followed as instructions. The module's own tools always did; a tool another module adds builds its own
+  response and reached the agent without the note. The server now adds it to any result that lacks one.
+  ([#64](https://github.com/Siteation/magento2-debugbar/issues/64))
 
 ## [1.5.0] - 2026-10-31
 
