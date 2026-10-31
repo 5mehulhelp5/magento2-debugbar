@@ -23,6 +23,7 @@ import {
   plural,
   requestLabel,
   shortUrl,
+  withoutAccessKey,
 } from '../src/format.js'
 
 const ROOT = '/var/www/store'
@@ -150,4 +151,16 @@ test('the small formatters answer the edges', () => {
   assert.equal(plural(0, 'query', 'queries'), '0 queries')
   assert.equal(methodList({ methods: { save: 'around', load: 'before' } }), 'around save, before load')
   assert.equal(methodList({}), '')
+})
+
+test('the access key leaves a URL and every other parameter stays as written', () => {
+  assert.equal(
+    withoutAccessKey('https://shop.test/tops.html?color=red&siteation_debugbar_key=secret&q=a%20b+c'),
+    'https://shop.test/tops.html?color=red&q=a%20b+c'
+  )
+  assert.equal(withoutAccessKey('https://shop.test/?siteation_debugbar_key=secret'), 'https://shop.test/')
+  assert.equal(withoutAccessKey('https://shop.test/?siteation.debugbar%5Fkey=secret&p=2'), 'https://shop.test/?p=2')
+  assert.equal(withoutAccessKey('https://shop.test/?siteation_debugbar_keys=1'), 'https://shop.test/?siteation_debugbar_keys=1')
+  assert.equal(withoutAccessKey('https://shop.test/a.html'), 'https://shop.test/a.html')
+  assert.equal(withoutAccessKey('/relative?siteation_debugbar_key=x'), '/relative?siteation_debugbar_key=x')
 })
