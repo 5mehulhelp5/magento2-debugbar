@@ -11,6 +11,7 @@
  * with nothing to say. The Alpine section is different because component state holds data
  * the page never draws.
  */
+import { withoutAccessKey } from './format.js'
 import { emptySchema, schema } from './schema.js'
 
 /** Lengths past which a search result is cut, and below which it says too little. */
@@ -668,7 +669,8 @@ export function social(doc) {
 }
 
 /**
- * Links a developer reaches for while looking at this, all built from the page's own URL.
+ * Links a developer reaches for while looking at this, all built from the page's own URL,
+ * less the access key it may still carry.
  *
  * View source is left out on purpose: browsers refuse to open a view-source: URL from a
  * link, so it would be a link that does nothing.
@@ -686,7 +688,7 @@ export function quickLinks(url) {
     { label: 'sitemap.xml', href: `${current.origin}/sitemap.xml` },
     {
       label: 'PageSpeed Insights',
-      href: `https://pagespeed.web.dev/analysis?url=${encodeURIComponent(comparable(current))}`,
+      href: `https://pagespeed.web.dev/analysis?url=${encodeURIComponent(withoutAccessKey(comparable(current)))}`,
     },
   ]
 }

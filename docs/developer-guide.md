@@ -233,9 +233,10 @@ keyless. `Model\Config\Backend\AccessKey` refuses it on save so the refusal is v
 `Model\AccessAttempts` stops answering an address that offers ten wrong keys inside fifteen
 minutes.
 
-`Model\ClientAddress` is the one definition of who a request came from, `REMOTE_ADDR` and
-never a forwarded header. The allowlist and the lockout both read it, because a difference
-between them would be a way around one of the two.
+`Model\ClientAddress` is the one definition of who a request came from: `REMOTE_ADDR`, unless
+that peer is listed in `trusted_proxies`, in which case `X-Forwarded-For` is walked from the
+right to the first entry that is not a trusted proxy. The allowlist and the lockout both read
+it, because a difference between them would be a way around one of the two.
 
 ## The bar
 

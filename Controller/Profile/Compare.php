@@ -59,7 +59,9 @@ class Compare implements HttpGetActionInterface
         $baseline = $this->store->get($baselineId);
         $subject = $this->store->get($subjectId);
 
-        if ($baseline === null || $subject === null) {
+        if ($baseline === null || $subject === null
+            || !$this->eligibility->allowsReadOf($baseline) || !$this->eligibility->allowsReadOf($subject)
+        ) {
             return $this->fail($result, 404, 'Profile not found or expired.');
         }
 
