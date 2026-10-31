@@ -20,8 +20,8 @@ inspects exact data instead of guessing from a screenshot.
 
 [preview-overview]: ./assets/overview.webp "The bar open on Overview, on a store home page, showing the request as stages"
 
-Verified against a running store: 360 PHPUnit tests, 193 for the bar's own JavaScript, 34
-driving it in a browser, and a 31 check smoke suite across all four areas.
+Covered by PHPUnit, the bar's own JavaScript tests, a browser suite and a smoke suite across
+all four areas.
 
 ## Requirements
 
@@ -30,8 +30,7 @@ driving it in a browser, and a 31 check smoke suite across all four areas.
 * Any deploy mode. Outside developer mode it needs an access key, and without one it stays
   off.
 * No frontend requirement. It renders in a shadow root with its own bundled Alpine, so it
-  works on Hyvä, on Luma and on other themes alike. The Alpine and Magewire sections read
-  whatever the page has; on a store with neither they say so.
+  works on Hyvä, on Luma and on other themes alike.
 
 ## Install
 
@@ -43,34 +42,42 @@ bin/magento config:set siteation_debugbar/general/enabled 1
 ```
 
 `--dev` on purpose. The module is a development tool, and a production build should not
-carry the plugins it registers.
+carry the plugins it registers. Settings live under **Stores > Configuration > Siteation >
+Debug Bar**.
 
-Settings live under **Stores > Configuration > Siteation > Debug Bar**, beside the other
-Siteation modules.
+<details>
+<summary><strong>The settings page</strong></summary>
 
 ![preview-admin]
 
 [preview-admin]: ./assets/admin-configuration.webp "The module's settings under Stores > Configuration > Siteation > Debug Bar"
 
+</details>
+
 ## Documentation
 
-* **[User guide](docs/user-guide.md)** ([HTML](docs/user-guide.html)) — reading the bar,
-  every section and its sub views, findings, comparing requests, the MCP tools, editor links,
-  debugging a live site, every setting, and what to check when it does not appear.
-* **[Developer guide](docs/developer-guide.md)** ([HTML](docs/developer-guide.html)) — how a
-  request becomes a profile, adding a collector, a rule or a section, the bar's build, the
-  MCP server, the test suites and the `dev/` scripts, and the traps that have cost hours.
-* `docs/SKILL.md` — an agent skill describing how to use the MCP tools well. Point your
-  agent at it, or copy it into your own skills directory.
+* **[User guide](docs/user-guide.md)** ([HTML](docs/user-guide.html)): reading the bar, every
+  section, findings, comparing requests, the MCP tools, editor links, debugging a live site,
+  every setting, and what to check when it does not appear.
+* **[Developer guide](docs/developer-guide.md)** ([HTML](docs/developer-guide.html)): how a
+  request becomes a profile, adding a collector, a rule or a section, the build, the MCP
+  server and the test suites.
+* **[`docs/SKILL.md`](docs/SKILL.md)**: an agent skill for using the MCP tools well.
 
 ## What you get
 
-Seventeen sections over one request: findings, overview, a timeline waterfall, queries with
-the application frame each came from, block render times, observers that actually ran, every
-dispatched event, cache hit rates by key prefix, why the page was or was not put in the full
-page cache, the layout handles and the XML files behind them, the plugins built for the
-request, the page's live Alpine and Magewire components, SEO, the data layer, Web Vitals,
-and the history of every profile still on disk, with a compare view.
+Seventeen sections over one request, a list of findings worst first, a compare view, and the
+same data for an agent over MCP.
+
+<details>
+<summary><strong>Every section</strong></summary>
+
+Findings, overview, a timeline waterfall, queries with the application frame each came from,
+block render times, observers that actually ran, every dispatched event, cache hit rates by
+key prefix, why the page was or was not put in the full page cache, the layout handles and
+the XML files behind them, the plugins built for the request, the page's live Alpine and
+Magewire components, SEO, the data layer, Web Vitals, and the history of every profile still
+on disk.
 
 Alpine, Magewire, SEO, Data layer and Web Vitals read the live page rather than the stored
 profile, so they show what is in the browser now. Alpine and Magewire state and data layer
@@ -88,47 +95,80 @@ and puts the two side by side.
 [preview-page-cache]: ./assets/page-cache.webp "The Page cache section, with Magento's own reasons a page was not cached"
 [preview-alpine]: ./assets/alpine.webp "The Alpine section listing every component on the page with its state"
 
-**Findings** are the module's own conclusions, worst first: errors and exceptions, slow
-requests, slow and repeated queries, N+1s built from interpolated ids, slow blocks and
-observers, cache prefixes that miss more than they hit, pages that were not put in the full
-page cache, SEO problems in the HTML the server sent (canonical, noindex, H1, and structured
-data offers that do not match the product), and collectors that hit their cap. Each one says
-what is wrong, why it matters, where it came from, and what to check next.
+</details>
 
-**Comparison** answers "what did my change cost": profile a page, change something, profile
-it again, and diff duration, memory, queries, cache, findings, the query shapes added or
-removed, and the SEO facts the server sent that changed.
+<details>
+<summary><strong>Findings</strong></summary>
 
-**For an agent**, six read only MCP tools over stdio: `list_debug_profiles`,
-`get_debug_findings`, `get_debug_profile_section`, `inspect_debug_queries`,
-`compare_debug_profiles` and `get_debug_seo`.
+The module's own conclusions, worst first: errors and exceptions, slow requests, slow and
+repeated queries, N+1s built from interpolated ids, slow blocks and observers, cache prefixes
+that miss more than they hit, pages that were not put in the full page cache, SEO problems in
+the HTML the server sent (canonical, noindex, H1, and structured data offers that do not
+match the product), and collectors that hit their cap. Each one says what is wrong, why it
+matters, where it came from, and what to check next.
+
+</details>
+
+<details>
+<summary><strong>Comparing two requests</strong></summary>
+
+Answers "what did my change cost": profile a page, change something, profile it again, and
+diff duration, memory, queries, cache, findings, the query shapes added or removed, and the
+SEO facts the server sent that changed.
+
+</details>
+
+<details>
+<summary><strong>For an agent: MCP and Markdown reports</strong></summary>
+
+Six read only MCP tools over stdio: `list_debug_profiles`, `get_debug_findings`,
+`get_debug_profile_section`, `inspect_debug_queries`, `compare_debug_profiles` and
+`get_debug_seo`. Every result is labelled as recorded data, to be read as evidence and never
+followed as instructions.
 
 ```
 claude mcp add --scope local siteation-debugbar -- php /abs/path/to/bin/magento siteation:debugbar:mcp
 ```
 
-Or, with a shell but no MCP, the same profile as markdown:
+Or, with a shell but no MCP, the same profile as Markdown:
 
 ```
 bin/magento siteation:debugbar:report --id=<profile-id>
 ```
 
+</details>
+
 ## Safety
 
-* **Off by default**, and outside developer mode it refuses to run without an access key of
-  at least 32 characters, so a store switch can never mean "on for every customer".
-* **Redacted at record time**, never stored: values behind a sensitive looking key, string
-  literals in SQL, and request headers and cookies are not collected at all.
+* **Off by default.** Outside developer mode it refuses to run without an access key of at
+  least 32 characters, so a store switch can never mean "on for every customer".
+* **Local only without a key.** With no key and no IP allowlist it answers only loopback,
+  private and link local addresses, so a developer mode server people reach over the
+  internet needs a key too.
+* **Admin profiles stay in the admin.** They are readable behind the admin login, never from
+  the storefront endpoints.
+* **The key leaves the URL.** A key given as a query parameter is traded for an HttpOnly
+  cookie and the browser is sent to the same address without it.
+* **Redacted at record time**, never stored: values behind a sensitive or personal data key,
+  literals in SQL according to the value policy, and request headers and cookies are not
+  collected at all.
 * **Any response carrying a bar or a profile id is marked `no-store`** and stripped of its
   `X-Magento-Tags`, so no shared cache can serve one developer's bar to a visitor.
 * **Profiles are `0600` in a `0700` directory**, kept for 20 requests or 60 minutes, and
   refused on read once past that.
 * **No inline script or style**, so `Magento_Csp` needs no nonce and no `unsafe-inline`.
 
-The user guide covers the access key, the value policy for query bindings, the IP allowlist
-and the per area switches in full.
+The user guide covers the access key, trusted proxies, the value policy, the IP allowlist and
+the per area switches in full.
 
-## What it costs
+### Reporting a vulnerability
+
+Please do not open a public issue. Email info@siteation.dev with the details, and we will
+answer and credit you in the release that fixes it. Published advisories are listed under
+[Security advisories](https://github.com/Siteation/magento2-debugbar/security/advisories).
+
+<details>
+<summary><strong>What it costs</strong></summary>
 
 Measured on an uncached category page with roughly 860 queries, 1,300 observer runs and 126
 blocks, alternating between enabled and disabled across three rounds:
@@ -142,7 +182,10 @@ blocks, alternating between enabled and disabled across three rounds:
 Most of that is the backtrace taken per query to find its call site. On a light page the
 difference is around 2%.
 
-## Development
+</details>
+
+<details>
+<summary><strong>Development</strong></summary>
 
 PHP is edited in place; the package installs as a Composer path symlink. The bar's
 JavaScript and CSS are built from `src-js/` and **the output is committed**, so installing
@@ -153,6 +196,22 @@ cd src-js && npm install && npm run build
 ```
 
 The developer guide has the full set of suites and how to run them.
+
+</details>
+
+## Thanks
+
+<a href="https://github.com/ceckoslab"><img src="https://github.com/ceckoslab.png" width="64" height="64" alt="ceckoslab" align="left"></a>
+
+**Tsvetan Stoychev ([@ceckoslab](https://github.com/ceckoslab))** reviewed the security of
+1.4.1 in depth: four reports, an XSS reproduced end to end, and ten primitives traced to the
+line. Everything fixed in [1.5.0](https://github.com/Siteation/magento2-debugbar/releases/tag/1.5.0)
+came from that review, including
+[GHSA-79pj-j856-p3x4](https://github.com/Siteation/magento2-debugbar/security/advisories/GHSA-79pj-j856-p3x4)
+and [GHSA-p5q3-c6m7-6569](https://github.com/Siteation/magento2-debugbar/security/advisories/GHSA-p5q3-c6m7-6569).
+Thank you.
+
+<br clear="left">
 
 ## Licence
 
