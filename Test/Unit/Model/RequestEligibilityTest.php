@@ -87,24 +87,84 @@ class RequestEligibilityTest extends TestCase
         $this->assertTrue($this->eligibility(path: '/catalog/siteation_debugbar/')->allows());
     }
 
+    #[Test]
+    public function keylessAnswersOnlyAddressesThatCannotComeFromTheInternet(): void
+    {
+        foreach (['127.0.0.1', '::1', '10.0.0.4', '172.18.0.1', '192.168.1.20', 'fd00::1', 'fe80::1'] as $local) {
+            $this->assertTrue($this->eligibility(client: $local)->allowsRead(), $local);
+        }
+
+        foreach (['203.0.113.7', '8.8.8.8', '2001:4860:4860::8888'] as $public) {
+            $this->assertFalse($this->eligibility(client: $public)->allowsRead(), $public);
+            $this->assertFalse($this->eligibility(client: $public)->allows(), $public);
+        }
+    }
+
+    #[Test]
+    public function aKeyOrAnAddressListLiftsTheLocalOnlyRule(): void
+    {
+        $key = str_repeat('k', 32);
+
+        $this->assertTrue($this->eligibility(client: '203.0.113.7', configuredKey: $key)->allowsRead());
+        $this->assertTrue($this->eligibility(client: '203.0.113.7', allowedIps: ['203.0.113.7'])->allowsRead());
+    }
+
+    #[Test]
+    public function theStorefrontDoesNotHandOutAdminProfiles(): void
+    {
+        $storefront = $this->eligibility();
+
+        $this->assertFalse($storefront->allowsReadOf($this->profileOf('adminhtml')));
+        $this->assertTrue($storefront->allowsReadOf($this->profileOf('frontend')));
+        $this->assertTrue($storefront->allowsReadOf($this->profileOf('webapi_rest')));
+        $this->assertTrue($storefront->allowsReadOf(['id' => 'x']), 'A profile with no request section.');
+    }
+
+    #[Test]
+    public function theAdminReadsEveryArea(): void
+    {
+        // The admin controllers delegate to the storefront ones behind the admin session, so
+        // the same check sees the admin front name there.
+        $admin = $this->eligibility(path: '/secret_admin/siteation_debugbar/profile/view/', areaCode: 'adminhtml');
+
+        $this->assertTrue($admin->allowsReadOf($this->profileOf('adminhtml')));
+        $this->assertTrue($admin->allowsReadOf($this->profileOf('frontend')));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function profileOf(string $area): array
+    {
+        return ['id' => 'x', 'sections' => ['request' => ['summary' => ['area' => $area]]]];
+    }
+
+    /**
+     * @param list<string> $allowedIps
+     */
     private function eligibility(
         bool $enabled = true,
         bool $ip = true,
         bool $area = true,
         bool $key = true,
         string $path = '/checkout/cart/',
-        string $areaCode = 'frontend'
+        string $areaCode = 'frontend',
+        string $client = '127.0.0.1',
+        string $configuredKey = '',
+        array $allowedIps = []
     ): RequestEligibility {
         $config = $this->createStub(Config::class);
         $config->method('isEnabled')->willReturn($enabled);
         $config->method('allowsIp')->willReturn($ip);
         $config->method('allowsArea')->willReturn($area);
+        $config->method('accessKey')->willReturn($configuredKey);
+        $config->method('allowedIps')->willReturn($allowedIps);
 
         $request = $this->createStub(HttpRequest::class);
         $request->method('getPathInfo')->willReturn($path);
         // As Http::getFrontName() does: the first segment of the path.
         $request->method('getFrontName')->willReturn(explode('/', trim($path, '/'))[0]);
-        $request->method('getServer')->willReturn('127.0.0.1');
+        $request->method('getServer')->willReturn($client);
 
         $areaList = $this->createStub(AreaList::class);
         $areaList->method('getCodeByFrontName')->willReturn($areaCode);

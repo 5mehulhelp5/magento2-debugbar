@@ -137,7 +137,8 @@
 <h2 id="switching-it-on"><a class="anchor" href="#switching-it-on">Switching it on</a></h2>
 <pre><code>bin/magento config:set siteation_debugbar/general/enabled 1</code></pre>
 <p>Settings live under <strong>Stores &gt; Configuration &gt; Siteation &gt; Debug Bar</strong>. They apply to the whole installation: the decision to collect is made before the store is known, so a per website or per store value is ignored rather than half honoured.</p>
-<p>In developer mode that is all it takes. In any other mode the bar also needs an access key, which is covered under <a href="#debugging-a-live-site">Debugging a live site</a>.</p>
+<p>In developer mode that is all it takes on your own machine. Without a key or an IP allowlist the bar answers only loopback, private and link local addresses, which covers a browser on the same machine and the private network Docker, Warden or DDEV put in front of the store. A developer mode server that people reach over the internet, a shared staging box for example, needs an access key like any other. In any other mode the bar always needs one, which is covered under <a href="#debugging-a-live-site">Debugging a live site</a>.</p>
+<p>Profiles of admin requests are only readable from the admin, behind its login. The storefront history leaves them out, and asking the storefront for one by id answers as for a missing profile.</p>
 <h2 id="finding-the-request-you-mean"><a class="anchor" href="#finding-the-request-you-mean">Finding the request you mean</a></h2>
 <p>Every profiled response carries its id:</p>
 <pre><code>X-Siteation-DebugBar-Profile: 4ae570c5-d45f-418c-92a7-5cda582be81e</code></pre>
@@ -320,7 +321,7 @@ open &quot;https://your-store.test/?siteation_debugbar_key=&lt;key&gt;&quot;</co
 <p><strong>Wrong keys are counted per address.</strong> Ten from one address inside fifteen minutes and that address stops being answered at all until fifteen minutes after the last one, so the endpoints cannot be used as an oracle. Only a request that presented something counts, so ordinary customer traffic never fills the bucket. Behind a load balancer every client shares one bucket, which is a reason to keep the key long rather than to lean on the counter. <code>cache:flush</code> clears it.</p>
 <p>Two more things follow from a key being set:</p>
 <ul>
-<li><strong>Production and default mode are allowed, but only behind a key.</strong> Developer mode is the only one that runs keyless, because it is the only one that is not somebody&#039;s live site. Default mode is what <code>MAGE_MODE</code> falls back to, so it is treated as live.</li>
+<li><strong>Production and default mode are allowed, but only behind a key.</strong> Developer mode is the only one that runs keyless, because it is the only one that is not somebody&#039;s live site, and even there only for local and private addresses. Default mode is what <code>MAGE_MODE</code> falls back to, so it is treated as live.</li>
 <li><strong>Any response carrying a bar or a profile id is marked <code>no-store</code></strong> and stripped of its <code>X-Magento-Tags</code>, so Varnish and any CDN refuse to keep it. A page with your bar in it is one developer&#039;s view of one request and must never reach a second person.</li>
 </ul>
 <p>An IP allowlist can be combined with the key. On its own it is not enough behind a proxy: the address the module trusts is <code>REMOTE_ADDR</code>, never a forwarded header, because an allowlist that trusts a client supplied header is not an allowlist.</p>

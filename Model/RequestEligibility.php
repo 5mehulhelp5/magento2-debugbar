@@ -52,12 +52,36 @@ class RequestEligibility
      * The area list is deliberately not consulted: it says which areas are worth profiling,
      * not who may look, and a profile of an area no longer being collected is still a
      * profile that was collected for this developer.
+     *
+     * Keyless means a developer machine, so with neither a key nor an address list the bar
+     * answers only an address that cannot come from the internet. Developer mode is all that
+     * allows keyless, and plenty of shared staging servers run in it: on one of those,
+     * "nothing to prove" meant anyone who could reach the site read every profile. Docker,
+     * Warden and DDEV put a private address in front of the store, so they still qualify.
      */
     public function allowsRead(): bool
     {
+        $ip = $this->clientIp();
+
         return $this->config->isEnabled()
-            && $this->config->allowsIp($this->clientIp())
-            && $this->accessKey->allows();
+            && $this->config->allowsIp($ip)
+            && $this->accessKey->allows()
+            && ($this->config->accessKey() !== '' || $this->config->allowedIps() !== [] || $this->isLocal($ip));
+    }
+
+    /**
+     * Whether this request may read this particular profile, once allowsRead() has said yes.
+     *
+     * An admin profile holds what the admin did, and the storefront endpoints answer without a
+     * login. The admin controllers run the same code behind the admin session, so from the
+     * admin every profile is readable and from the storefront every one but the admin's.
+     *
+     * @param array<string, mixed> $profile
+     */
+    public function allowsReadOf(array $profile): bool
+    {
+        return ($profile['sections']['request']['summary']['area'] ?? null) !== Area::AREA_ADMINHTML
+            || $this->area() === Area::AREA_ADMINHTML;
     }
 
     /**
@@ -77,6 +101,17 @@ class RequestEligibility
     public function clientIp(): ?string
     {
         return $this->client->get();
+    }
+
+    /**
+     * Loopback, private and link local addresses, IPv4 and IPv6 alike: the reserved ranges
+     * PHP knows hold loopback and link local, the private ones hold RFC 1918 and ULA.
+     */
+    private function isLocal(?string $ip): bool
+    {
+        return $ip !== null
+            && filter_var($ip, FILTER_VALIDATE_IP) !== false
+            && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
     }
 
     /**
