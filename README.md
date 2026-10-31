@@ -138,6 +138,21 @@ bin/magento siteation:debugbar:report --id=<profile-id>
 
 </details>
 
+## Add-ons
+
+Other modules can add their own section to the bar, with findings and MCP tools of their own.
+The developer guide explains how, under
+[A section from another module](docs/developer-guide.md#a-section-from-another-module).
+
+* **[Commerce365](https://github.com/Siteation/magento2-commerce365-debugbar)**
+  ([Packagist](https://packagist.org/packages/siteation/magento2-commerce365-debugbar)):
+  the customer prices a request answered, every Commerce365 Hub and Business Central call, the
+  price cache, and the raw BC price bands, with findings and two MCP tools.
+
+  ```
+  composer require --dev siteation/magento2-commerce365-debugbar
+  ```
+
 ## Safety
 
 * **Off by default.** Outside developer mode it refuses to run without an access key of at
