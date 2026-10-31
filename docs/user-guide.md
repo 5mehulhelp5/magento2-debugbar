@@ -638,7 +638,8 @@ run, and "on for whoever holds the key" means nothing when the key is `x`.
 address stops being answered at all until fifteen minutes after the last one, so the
 endpoints cannot be used as an oracle. Only a request that presented something counts, so
 ordinary customer traffic never fills the bucket. Behind a load balancer every client shares
-one bucket, which is a reason to keep the key long rather than to lean on the counter.
+one bucket, unless the balancer is named in `trusted_proxies` (see below). Either way, keep
+the key long rather than lean on the counter.
 `cache:flush` clears it.
 
 Two more things follow from a key being set:
@@ -651,9 +652,19 @@ Two more things follow from a key being set:
   `X-Magento-Tags`, so Varnish and any CDN refuse to keep it. A page with your bar in it is
   one developer's view of one request and must never reach a second person.
 
-An IP allowlist can be combined with the key. On its own it is not enough behind a proxy: the
-address the module trusts is `REMOTE_ADDR`, never a forwarded header, because an allowlist
-that trusts a client supplied header is not an allowlist.
+An IP allowlist can be combined with the key. By default the address the module trusts is
+`REMOTE_ADDR`, never a forwarded header, because an allowlist that trusts a client supplied
+header is not an allowlist. Behind a load balancer or reverse proxy that address is the
+proxy, so the allowlist could only name the proxy (which admits everyone behind it) and every
+client would share one lockout bucket.
+
+To fix both, list your own proxies in `trusted_proxies`. When a request arrives from one of
+them, `X-Forwarded-For` is read from the right: entries written by a trusted proxy are
+believed, and the first one that is not itself a trusted proxy is the client. Anything to the
+left of it is what the client sent and is ignored. An entry that is not an IP address stops
+the walk at the last proxy that could be believed. A request from any address not on the list
+is judged by `REMOTE_ADDR` alone, header or not. Addresses match exactly, as in `allowed_ips`,
+so list each proxy rather than a range.
 
 Rotate the key with the same command when you are done, or empty it to close production
 again.
@@ -673,6 +684,7 @@ Siteation > Debug Bar**.
 | `slow_query_ms` | `100` | Threshold behind `query.slow` |
 | `slow_request_ms` | `1000` | Threshold behind `request.slow` |
 | `allowed_ips` | empty | Comma separated; empty allows every address |
+| `trusted_proxies` | empty | Comma separated proxies whose `X-Forwarded-For` is believed; empty reads `REMOTE_ADDR` only |
 | `value_policy` | `full` | `full`, `masked` or `none` for captured values |
 | `access_key` | empty | 32 characters or more; required outside developer mode |
 | `editor` | empty | Editor for call site links |
