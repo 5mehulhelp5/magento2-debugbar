@@ -67,12 +67,12 @@ class ProfileReport
     {
         return sprintf(
             "# %s %s\n\n%s in %s ms, %s %s, %d %s.",
-            $summary['method'] ?? 'GET',
-            $this->requestLabel($summary),
-            $summary['status'] ?? 'Threw, no response',
+            $this->text((string) ($summary['method'] ?? 'GET')),
+            $this->text($this->requestLabel($summary)),
+            $this->text((string) ($summary['status'] ?? 'Threw, no response')),
             $this->number($summary['duration_ms'] ?? 0, 2),
-            $summary['area'] ?? 'unknown area',
-            $summary['action'] ? "action `{$summary['action']}`" : 'no action',
+            $this->text((string) ($summary['area'] ?? 'unknown area')),
+            $summary['action'] ? 'action ' . $this->code((string) $summary['action']) : 'no action',
             (int) ($summary['query_count'] ?? 0),
             (int) ($summary['query_count'] ?? 0) === 1 ? 'query' : 'queries'
         );
@@ -94,18 +94,22 @@ class ProfileReport
         $lines = ['## Findings', ''];
 
         foreach ($findings as $finding) {
-            $lines[] = sprintf('- **%s** %s', $finding['severity'] ?? 'notice', $finding['message'] ?? '');
+            $lines[] = sprintf(
+                '- **%s** %s',
+                $this->text((string) ($finding['severity'] ?? 'notice')),
+                $this->text((string) ($finding['message'] ?? ''))
+            );
 
             if (!empty($finding['why'])) {
-                $lines[] = '  - Why: ' . $finding['why'];
+                $lines[] = '  - Why: ' . $this->text((string) $finding['why']);
             }
 
             if (!empty($finding['next'])) {
-                $lines[] = '  - Next: ' . $finding['next'];
+                $lines[] = '  - Next: ' . $this->text((string) $finding['next']);
             }
 
             if (!empty($finding['location'])) {
-                $lines[] = '  - Where: `' . $finding['location'] . '`';
+                $lines[] = '  - Where: ' . $this->code((string) $finding['location']);
             }
         }
 
@@ -181,14 +185,12 @@ class ProfileReport
             // of the statement would be rendered as prose.
             $lines[] = sprintf('%d. %s ms', $index + 1, $this->number($query['duration_ms'] ?? 0, 2));
             $lines[] = '';
-            $lines[] = '   ```sql';
-            $lines[] = '   ' . $this->trim((string) ($query['sql'] ?? ''));
-            $lines[] = '   ```';
+            $lines[] = $this->fence('sql', $this->trim((string) ($query['sql'] ?? '')), '   ');
 
             $frame = $query['callsite'][0] ?? null;
 
             if (is_array($frame) && isset($frame['file'], $frame['line'])) {
-                $lines[] = sprintf('   %s:%d', $frame['file'], $frame['line']);
+                $lines[] = sprintf('   %s:%d', $this->text((string) $frame['file']), $frame['line']);
             }
         }
 
@@ -227,8 +229,8 @@ class ProfileReport
             $lines[] = sprintf(
                 '- %s ms — %s (%s), starting at %s ms',
                 $this->number($span['duration_ms'] ?? 0, 2),
-                $this->label((string) ($span['label'] ?? '')),
-                $span['section'] ?? '',
+                $this->text($this->label((string) ($span['label'] ?? ''))),
+                $this->text((string) ($span['section'] ?? '')),
                 $this->number($span['start_ms'] ?? 0, 1)
             );
         }
@@ -299,13 +301,13 @@ class ProfileReport
         foreach ($sources as $row) {
             $lines[] = sprintf(
                 '- %s: %s%s%s',
-                $row['label'] ?? '',
-                $row['source'] ?? '',
-                ($row['key'] ?? '') === '' ? '' : sprintf(' `%s`', $row['key']),
+                $this->text((string) ($row['label'] ?? '')),
+                $this->text((string) ($row['source'] ?? '')),
+                ($row['key'] ?? '') === '' ? '' : ' ' . $this->code((string) $row['key']),
                 ($row['matches'] ?? null) === false
                     ? sprintf(
                         '. The page does not match it (expected "%s"), so something else set this value.',
-                        $this->label((string) ($row['expected'] ?? ''))
+                        $this->text($this->label((string) ($row['expected'] ?? '')))
                     )
                     : ''
             );
@@ -317,7 +319,7 @@ class ProfileReport
     /** Page text in a table cell: one line, no pipe to end the cell early. */
     private function cell(string $value): string
     {
-        return str_replace('|', '\|', $this->label($value));
+        return str_replace('|', '\|', $this->text($this->label($value)));
     }
 
     /**
@@ -331,10 +333,10 @@ class ProfileReport
             '## What changed',
             '',
             sprintf(
-                'Against `%s`, %s %s.',
-                $diff['baseline']['profile_id'] ?? '',
-                $diff['baseline']['method'] ?? '',
-                $diff['baseline']['path'] ?? ''
+                'Against %s, %s %s.',
+                $this->code((string) ($diff['baseline']['profile_id'] ?? '')),
+                $this->text((string) ($diff['baseline']['method'] ?? '')),
+                $this->text((string) ($diff['baseline']['path'] ?? ''))
             ),
             '',
             '| | before | now | change |',
@@ -355,12 +357,12 @@ class ProfileReport
 
         foreach ($diff['findings']['added'] as $finding) {
             $lines[] = '';
-            $lines[] = '- New finding: ' . ($finding['message'] ?? '');
+            $lines[] = '- New finding: ' . $this->text((string) ($finding['message'] ?? ''));
         }
 
         foreach ($diff['findings']['resolved'] as $finding) {
             $lines[] = '';
-            $lines[] = '- Resolved: ' . ($finding['message'] ?? '');
+            $lines[] = '- Resolved: ' . $this->text((string) ($finding['message'] ?? ''));
         }
 
         if ($diff['seo']['available']) {
@@ -394,9 +396,7 @@ class ProfileReport
         foreach (array_slice($queries['added'], 0, 5) as $row) {
             $lines[] = sprintf('- +%d', $row['count']);
             $lines[] = '';
-            $lines[] = '  ```sql';
-            $lines[] = '  ' . $this->trim((string) $row['sql']);
-            $lines[] = '  ```';
+            $lines[] = $this->fence('sql', $this->trim((string) $row['sql']), '  ');
         }
 
         return implode("\n", $lines);
@@ -408,9 +408,9 @@ class ProfileReport
     private function footer(array $summary): string
     {
         return sprintf(
-            "---\n\nProfile `%s`, captured by Siteation_DebugBar. Values are redacted at "
+            "---\n\nProfile %s, captured by Siteation_DebugBar. Values are redacted at "
             . 'record time and lists are truncated, so absence here is not absence in the request.',
-            $summary['profile_id'] ?? ''
+            $this->code((string) ($summary['profile_id'] ?? ''))
         );
     }
 
@@ -432,6 +432,68 @@ class ProfileReport
         return strlen($value) <= self::MAX_LABEL_LENGTH
             ? $value
             : substr($value, 0, self::MAX_LABEL_LENGTH) . ' ...';
+    }
+
+    /**
+     * Captured text written as prose, on one line and inert.
+     *
+     * The values come from the request: an exception message, a page title, a block name.
+     * A newline in one could end the list item it sits in and start a heading, and a tag in
+     * one would render as HTML wherever the report is pasted. Only < > & are encoded, so a
+     * quote in a message still reads as a quote in the raw markdown.
+     */
+    private function text(string $value): string
+    {
+        return strtr(
+            trim((string) preg_replace('/\s+/', ' ', $value)),
+            ['&' => '&amp;', '<' => '&lt;', '>' => '&gt;']
+        );
+    }
+
+    /**
+     * Captured text as an inline code span that no backtick inside it can close.
+     *
+     * CommonMark ends a span at the first backtick run as long as the one that opened it,
+     * so the delimiter is one longer than the longest run in the value. A value that starts
+     * or ends with a backtick would merge into the delimiter, so it is padded with a space,
+     * which the renderer strips again from both sides.
+     */
+    private function code(string $value): string
+    {
+        $value = (string) preg_replace('/\s+/', ' ', $value);
+
+        if (trim($value) === '') {
+            return '` `';
+        }
+
+        $fence = str_repeat('`', $this->longestRun($value) + 1);
+        $pad = preg_match('/^[` ]|[` ]$/', $value) ? ' ' : '';
+
+        return $fence . $pad . $value . $pad . $fence;
+    }
+
+    /**
+     * Captured text as a fenced block, indented to sit inside a list item.
+     *
+     * A line of three or more backticks inside the body would close a fence of the same
+     * length, so the fence is longer than any such run, and never shorter than three.
+     */
+    private function fence(string $lang, string $body, string $indent = ''): string
+    {
+        $fence = str_repeat('`', max(3, $this->longestRun($body) + 1));
+        $lines = array_map(
+            static fn (string $line): string => $indent . $line,
+            [$fence . $lang, ...explode("\n", $body), $fence]
+        );
+
+        return implode("\n", $lines);
+    }
+
+    private function longestRun(string $value): int
+    {
+        preg_match_all('/`+/', $value, $matches);
+
+        return max([0, ...array_map('strlen', $matches[0])]);
     }
 
     private function trim(string $sql): string
