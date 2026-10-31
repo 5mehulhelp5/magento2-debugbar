@@ -117,7 +117,7 @@ class RequestEligibilityTest extends TestCase
             $request,
             $areaList,
             $accessKey,
-            new ClientAddress($request)
+            new ClientAddress($request, $config)
         );
     }
 }

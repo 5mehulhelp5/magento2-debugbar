@@ -66,6 +66,12 @@
                     <comment>Comma separated. Leave empty to allow every address.</comment>
                     <depends><field id="enabled">1</field></depends>
                 </field>
+                <field id="trusted_proxies" translate="label comment" type="text" sortOrder="45"
+                       showInDefault="1" showInWebsite="0" showInStore="0" canRestore="1">
+                    <label>Trusted Proxies</label>
+                    <comment><![CDATA[Comma separated addresses of your own load balancers or reverse proxies. When a request arrives from one of them, the client address is read from <code>X-Forwarded-For</code>, for the IP allowlist and the wrong key lockout alike. Leave empty when nothing sits in front of the store; a header from any other address is never read.]]></comment>
+                    <depends><field id="enabled">1</field></depends>
+                </field>
                 <field id="value_policy" translate="label comment" type="select" sortOrder="50"
                        showInDefault="1" showInWebsite="0" showInStore="0" canRestore="1">
                     <label>Captured Values</label>

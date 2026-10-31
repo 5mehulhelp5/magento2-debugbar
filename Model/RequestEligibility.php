@@ -73,7 +73,7 @@ class RequestEligibility
         }
     }
 
-    /** @see ClientAddress for why this ignores X-Forwarded-For. */
+    /** @see ClientAddress for when X-Forwarded-For is believed. */
     public function clientIp(): ?string
     {
         return $this->client->get();

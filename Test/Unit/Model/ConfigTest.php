@@ -126,6 +126,30 @@ class ConfigTest extends TestCase
     }
 
     #[Test]
+    public function noProxyIsTrustedByDefault(): void
+    {
+        $this->assertSame([], $this->enabled([])->trustedProxies());
+    }
+
+    #[Test]
+    public function trustedProxiesAreParsedLikeTheAllowlist(): void
+    {
+        $config = $this->enabled(['siteation_debugbar/general/trusted_proxies' => ' 10.0.0.1, ,10.0.0.2 ']);
+
+        $this->assertSame(['10.0.0.1', '10.0.0.2'], $config->trustedProxies());
+    }
+
+    #[Test]
+    public function aDisabledBarTrustsNoProxy(): void
+    {
+        $config = $this->config(State::MODE_DEVELOPER, [
+            'siteation_debugbar/general/trusted_proxies' => '10.0.0.1',
+        ]);
+
+        $this->assertSame([], $config->trustedProxies());
+    }
+
+    #[Test]
     public function anUnknownValuePolicyFallsBackToFull(): void
     {
         $config = $this->enabled(['siteation_debugbar/general/value_policy' => 'nonsense']);
