@@ -7,7 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.4.1...main
+[Unreleased]: https://github.com/Siteation/magento2-debugbar/compare/1.5.0...main
+
+## [1.5.0] - 2026-10-31
+
+[1.5.0]: https://github.com/Siteation/magento2-debugbar/compare/1.4.1...1.5.0
+
+Thanks to Tsvetan Stoychev ([@ceckoslab](https://github.com/ceckoslab)), whose security review of 1.4.1 found
+everything in this release. Upgrading is recommended for every installation.
+
+### Security
+
+- The bar is no longer inserted inside another template's script, style or comment.
+  The injector put it before the first `</head>` and `</body>` it found, including text inside a script element.
+  A page holding that text in inert script data, such as a JSON block with visitor input, then had its script
+  closed early by the bar, and the rest of the data ran as HTML. The bar runs on admin pages by default, so this
+  could be XSS in an admin session. The insertion point is now the document's own closing tag.
+  ([#51](https://github.com/Siteation/magento2-debugbar/issues/51))
+
+- Without an access key, the bar only answers local addresses, and admin profiles stay in the admin.
+  In developer mode with no key and no IP allowlist, anyone who could reach the store could list and read every
+  profile through the storefront endpoints, admin profiles included. Keyless now answers only loopback, private
+  and link local addresses, so a local Docker, Warden or DDEV setup works as before, and a developer mode server
+  reachable from the internet needs a key. The storefront endpoints no longer return admin profiles; the admin
+  reads them behind its login. ([#52](https://github.com/Siteation/magento2-debugbar/issues/52))
+
+- A key given in the URL now redirects to the same address without it, so it leaves the address bar and the
+  browser history. The first request still leaves one line in the access log, so the header remains the way for
+  scripts and agents. The key is also stripped from the PageSpeed Insights, Rich Results Test and Schema Markup
+  Validator links. ([#53](https://github.com/Siteation/magento2-debugbar/issues/53))
+
+### Added
+
+- A **Trusted Proxies** setting. When a request comes from a listed proxy, the client address is read from
+  `X-Forwarded-For`, for the IP allowlist and the wrong key lockout alike. Empty by default, which keeps the
+  previous behaviour. ([#54](https://github.com/Siteation/magento2-debugbar/issues/54))
+
+### Changed
+
+- Keys named after personal data (`email`, `phone`, `telephone`, `dob`, `birth`) are redacted under every policy.
+  Under `masked`, hex literals are removed from captured SQL; under `none`, numbers are removed as well.
+  ([#55](https://github.com/Siteation/magento2-debugbar/issues/55))
+
+### Fixed
+
+- A microdata property named `__proto__`, `constructor` or `toString` is read as an ordinary property.
+- Captured values in the Markdown report can no longer break out of their code spans or add markup.
+- A profile whose file permissions could not be narrowed is logged once instead of passing silently.
+  ([#56](https://github.com/Siteation/magento2-debugbar/issues/56))
 
 ## [1.4.1] - 2026-10-27
 
