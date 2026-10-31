@@ -286,10 +286,16 @@ function microdataItem(scope) {
 
   if (scope.getAttribute('itemid')) item['@id'] = scope.getAttribute('itemid')
 
+  // itemprop names are page text, so __proto__, constructor or toString must land as plain
+  // own properties: assignment would swap the prototype or merge into an inherited value.
   const add = (name, value) => {
-    if (!(name in item)) item[name] = value
-    else if (Array.isArray(item[name])) item[name].push(value)
-    else item[name] = [item[name], value]
+    if (Array.isArray(item[name]) && Object.hasOwn(item, name)) item[name].push(value)
+    else Object.defineProperty(item, name, {
+      value: Object.hasOwn(item, name) ? [item[name], value] : value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    })
   }
 
   const walk = (node) => {

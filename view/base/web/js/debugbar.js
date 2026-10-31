@@ -6684,7 +6684,12 @@ function Lr(e) {
   const t = {}, n = xe(e.getAttribute("itemtype"));
   n.length === 1 ? t["@type"] = n[0] : n.length > 1 && (t["@type"] = n), e.getAttribute("itemid") && (t["@id"] = e.getAttribute("itemid"));
   const a = (i, r) => {
-    i in t ? Array.isArray(t[i]) ? t[i].push(r) : t[i] = [t[i], r] : t[i] = r;
+    Array.isArray(t[i]) && Object.hasOwn(t, i) ? t[i].push(r) : Object.defineProperty(t, i, {
+      value: Object.hasOwn(t, i) ? [t[i], r] : r,
+      enumerable: !0,
+      writable: !0,
+      configurable: !0
+    });
   }, s = (i) => {
     Array.from(i.children).forEach((r) => {
       const o = (r.getAttribute("itemprop") || "").trim().split(/\s+/).filter(Boolean), l = r.hasAttribute("itemscope");
