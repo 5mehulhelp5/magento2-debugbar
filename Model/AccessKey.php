@@ -101,7 +101,12 @@ class AccessKey
     }
 
     /**
-     * Hands the browser a cookie so the key leaves the address bar after one request.
+     * Hands the browser a cookie so the key is needed in the URL only once.
+     *
+     * Taking it out of the address bar is HttpPlugin's job: once this returns true, a plain
+     * GET is redirected to the same URL without the parameter. The one request that carried
+     * it has still been seen by the access log and anything else between the browser and
+     * Magento, which is why scripts present the header instead.
      *
      * Written through the public metadata rather than the sensitive one, which cannot carry
      * a lifetime: a sensitive cookie lasts the browser session, and a debugging credential

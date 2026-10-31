@@ -299,6 +299,12 @@ test('quick links are built from the page origin, without the fragment', () => {
   assert.equal(result[2].href, 'https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fshop.test%2Ftops.html%3Fa%3D1')
 })
 
+test('quick links never carry the access key to PageSpeed Insights', () => {
+  const result = quickLinks('https://shop.test/tops.html?siteation_debugbar_key=secret&a=1')
+
+  assert.equal(result[2].href, 'https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fshop.test%2Ftops.html%3Fa%3D1')
+})
+
 test('the page read keeps elements out of the model and counts every problem', () => {
   const doc = page(HEAD, `
     <h1>Tops</h1>

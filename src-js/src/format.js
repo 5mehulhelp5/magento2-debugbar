@@ -83,6 +83,51 @@ export function shortUrl(url, origin) {
   return segments.length > 2 ? `…/${segments.slice(-2).join('/')}` : path
 }
 
+/** The query parameter AccessKey::PARAM trades for a cookie. */
+export const ACCESS_KEY_PARAM = 'siteation_debugbar_key'
+
+/**
+ * A URL safe to hand to somebody else's server.
+ *
+ * The server redirects a page opened with the access key to a clean address, but a POST, an
+ * AJAX call or a server that could not set the cookie leaves it where it was, and a link to
+ * PageSpeed Insights or the Rich Results Test would carry it straight to Google. Every other
+ * parameter is kept exactly as written. Names are compared the way PHP reads them into
+ * $_GET, dots and spaces becoming underscores, so what unlocked the bar is also what goes.
+ *
+ * @param {string} url an absolute URL
+ * @returns {string} the same URL without the key, or the input untouched when it is not one
+ */
+export function withoutAccessKey(url) {
+  let parsed
+
+  try {
+    parsed = new URL(url)
+  } catch {
+    return url
+  }
+
+  if (parsed.search === '') return url
+
+  const kept = parsed.search.slice(1).split('&').filter((pair) => {
+    if (pair === '') return false
+
+    let name = pair.split('=', 1)[0].replace(/\+/g, ' ')
+
+    try {
+      name = decodeURIComponent(name)
+    } catch {
+      return true
+    }
+
+    return name.replace(/[. ]/g, '_') !== ACCESS_KEY_PARAM
+  })
+
+  parsed.search = kept.join('&')
+
+  return parsed.href
+}
+
 /**
  * What to call a request in a list.
  *
