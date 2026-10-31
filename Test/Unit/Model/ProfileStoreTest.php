@@ -11,6 +11,7 @@ use Magento\Framework\Filesystem;
 use Magento\Framework\Filesystem\Directory\WriteInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Siteation\DebugBar\Model\Config;
 use Siteation\DebugBar\Model\ProfileStore;
@@ -35,6 +36,9 @@ class ProfileStoreTest extends TestCase
 
     /** @var list<string> paths another request removed between the search and the stat */
     private array $unstattable = [];
+
+    /** @var list<string> */
+    private array $warnings = [];
 
     #[Test]
     public function aProfileSurvivesBytesThatAreNotUtf8(): void
@@ -97,6 +101,22 @@ class ProfileStoreTest extends TestCase
 
         $this->assertSame($id, $profile['id'] ?? null);
         $this->assertSame(3, $profile['sections']['queries']['summary']['count'] ?? null);
+    }
+
+    #[Test]
+    public function aProfileThatCannotBeNarrowedIsStoredAndSaidOnce(): void
+    {
+        $store = $this->store();
+        $first = $store->put(['id' => ProfileStore::generateId()]);
+        $second = $store->put(['id' => ProfileStore::generateId()]);
+
+        $this->assertNotNull($store->get($first));
+        $this->assertNotNull($store->get($second));
+        $this->assertCount(1, $this->warnings, 'four refusals, one line in the log');
+        $this->assertStringContainsString(
+            'could not set mode 700 on /nonexistent/siteation_debugbar',
+            $this->warnings[0]
+        );
     }
 
     #[Test]
@@ -256,12 +276,16 @@ class ProfileStoreTest extends TestCase
         $this->deleted = [];
         $this->existing = [];
         $this->unstattable = [];
+        $this->warnings = [];
 
         $directory = $this->createStub(WriteInterface::class);
         $directory->method('isExist')->willReturnCallback(
             fn (string $path): bool => $path === self::DIRECTORY || isset($this->written[$path])
         );
-        $directory->method('getAbsolutePath')->willReturnArgument(0);
+        // Nowhere real, so every chmod is refused, as on a directory the web user does not own.
+        $directory->method('getAbsolutePath')->willReturnCallback(
+            static fn (string $path): string => '/nonexistent/' . $path
+        );
         $directory->method('readFile')->willReturnCallback(
             fn (string $path): string => $this->written[$path] ?? ''
         );
@@ -330,6 +354,13 @@ class ProfileStoreTest extends TestCase
         $config->method('maxProfiles')->willReturn($maxProfiles);
         $config->method('maxAgeMinutes')->willReturn($maxAgeMinutes);
 
-        return new ProfileStore($filesystem, $config);
+        $logger = $this->createStub(LoggerInterface::class);
+        $logger->method('warning')->willReturnCallback(
+            function (string $message): void {
+                $this->warnings[] = $message;
+            }
+        );
+
+        return new ProfileStore($filesystem, $config, $logger);
     }
 }

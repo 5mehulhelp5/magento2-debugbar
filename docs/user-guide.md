@@ -21,7 +21,9 @@ stored.
 
 Files are pruned to the newest 20 or the last 60 minutes, whichever comes first, and are
 written `0600` inside a `0700` directory. A profile past that window is refused on read as
-well as swept, so the retention holds whether or not anything has triggered a sweep.
+well as swept, so the retention holds whether or not anything has triggered a sweep. Where
+the filesystem refuses those modes, the profile is still written and one warning per process
+goes to the Magento log.
 
 ## Switching it on
 
@@ -633,6 +635,11 @@ Two more things follow from a key being set:
 An IP allowlist can be combined with the key. On its own it is not enough behind a proxy: the
 address the module trusts is `REMOTE_ADDR`, never a forwarded header, because an allowlist
 that trusts a client supplied header is not an allowlist.
+
+The key guards HTTP only. The report command and the MCP server read the profile files under
+`var/siteation_debugbar` directly, so anyone with a shell on the host, access to its backups,
+or an agent with filesystem access can read what was captured without a key. The file modes
+narrow that to the user Magento runs as; they do not narrow it further.
 
 Rotate the key with the same command when you are done, or empty it to close production
 again.

@@ -133,7 +133,7 @@
 <h2 id="what-a-profile-is"><a class="anchor" href="#what-a-profile-is">What a profile is</a></h2>
 <p>Every request that the module is allowed to profile writes one JSON file under <code>var/siteation_debugbar/</code>. That file is the profile: the request line, timings, every query with the application frame it came from, the events and observers that ran, the blocks that rendered, the cache reads and writes, the plugins that were built, and the module&#039;s own findings about all of it.</p>
 <p>The profile is bounded and redacted as it is written, not when it is read. Sensitive keys are masked at record time, string literals are stripped from SQL, and each collector keeps a capped number of items. Nothing you read later can be larger or franker than what was stored.</p>
-<p>Files are pruned to the newest 20 or the last 60 minutes, whichever comes first, and are written <code>0600</code> inside a <code>0700</code> directory. A profile past that window is refused on read as well as swept, so the retention holds whether or not anything has triggered a sweep.</p>
+<p>Files are pruned to the newest 20 or the last 60 minutes, whichever comes first, and are written <code>0600</code> inside a <code>0700</code> directory. A profile past that window is refused on read as well as swept, so the retention holds whether or not anything has triggered a sweep. Where the filesystem refuses those modes, the profile is still written and one warning per process goes to the Magento log.</p>
 <h2 id="switching-it-on"><a class="anchor" href="#switching-it-on">Switching it on</a></h2>
 <pre><code>bin/magento config:set siteation_debugbar/general/enabled 1</code></pre>
 <p>Settings live under <strong>Stores &gt; Configuration &gt; Siteation &gt; Debug Bar</strong>. They apply to the whole installation: the decision to collect is made before the store is known, so a per website or per store value is ignored rather than half honoured.</p>
@@ -324,6 +324,7 @@ open &quot;https://your-store.test/?siteation_debugbar_key=&lt;key&gt;&quot;</co
 <li><strong>Any response carrying a bar or a profile id is marked <code>no-store</code></strong> and stripped of its <code>X-Magento-Tags</code>, so Varnish and any CDN refuse to keep it. A page with your bar in it is one developer&#039;s view of one request and must never reach a second person.</li>
 </ul>
 <p>An IP allowlist can be combined with the key. On its own it is not enough behind a proxy: the address the module trusts is <code>REMOTE_ADDR</code>, never a forwarded header, because an allowlist that trusts a client supplied header is not an allowlist.</p>
+<p>The key guards HTTP only. The report command and the MCP server read the profile files under <code>var/siteation_debugbar</code> directly, so anyone with a shell on the host, access to its backups, or an agent with filesystem access can read what was captured without a key. The file modes narrow that to the user Magento runs as; they do not narrow it further.</p>
 <p>Rotate the key with the same command when you are done, or empty it to close production again.</p>
 <h2 id="settings"><a class="anchor" href="#settings">Settings</a></h2>
 <p>All under <code>siteation_debugbar/general/</code>, shown in the admin under <strong>Stores &gt; Configuration &gt; Siteation &gt; Debug Bar</strong>.</p>

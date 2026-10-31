@@ -9,6 +9,7 @@ use JsonException;
 use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Filesystem;
 use Magento\Framework\Filesystem\Directory\WriteInterface;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
 
@@ -28,9 +29,12 @@ class ProfileStore
 
     private const DIRECTORY = 'siteation_debugbar';
 
+    private bool $permissionWarningLogged = false;
+
     public function __construct(
         private readonly Filesystem $filesystem,
-        private readonly Config $config
+        private readonly Config $config,
+        private readonly LoggerInterface $logger
     ) {
     }
 
@@ -283,12 +287,28 @@ class ProfileStore
      * Magento writes view and var files world readable. A profile holds SQL, bindings and
      * request data, so it is narrowed after it is in place: the rename does not carry the
      * temporary file's mode across every filesystem driver.
+     *
+     * A profile that cannot be narrowed is still better than a request that fails, so a
+     * refusal is logged rather than thrown. Once per process: the store is shared, and a
+     * directory the web user does not own refuses on every write, which would otherwise
+     * add two identical lines to the log per request.
      */
     private function restrictPermissions(WriteInterface $directory, string $path, int $mode): void
     {
-        // A profile that cannot be narrowed is still better than a request that fails.
+        $absolute = $directory->getAbsolutePath($path);
+
         // phpcs:ignore Magento2.Functions.DiscouragedFunction,Generic.PHP.NoSilencedErrors
-        @chmod($directory->getAbsolutePath($path), $mode);
+        if (@chmod($absolute, $mode) || $this->permissionWarningLogged) {
+            return;
+        }
+
+        $this->permissionWarningLogged = true;
+        $this->logger->warning(sprintf(
+            'Siteation_DebugBar could not set mode %o on %s, so profiles there may be readable '
+                . 'by other users on this host.',
+            $mode,
+            $absolute
+        ));
     }
 
     private function assertValidId(string $id): void
