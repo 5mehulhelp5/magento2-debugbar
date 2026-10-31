@@ -606,8 +606,20 @@ curl -H "X-Siteation-DebugBar-Key: <key>" https://your-store.test/
 open "https://your-store.test/?siteation_debugbar_key=<key>"
 ```
 
-The second swaps the key for an HttpOnly cookie lasting an hour, which is how long a profile
-lives, so the key leaves the address bar after one request.
+The first is the route for scripts, agents and API clients: the key travels in a header, so
+it never becomes part of a URL. The second is for a browser. It swaps the key for an HttpOnly
+cookie lasting an hour, which is how long a profile lives, and then redirects to the same
+address without the key, keeping every other parameter. The page you land on is profiled
+with the cookie, and the profile of the first request is still kept in the history. Only a plain GET is
+redirected: a POST, an AJAX call, GraphQL and REST keep their response, and if the cookie
+could not be set there is no redirect either, so you are never sent somewhere the bar cannot
+follow.
+
+The redirect clears the address bar, not the past. The first request carried the key, so it
+still leaves one line in the access log, and anything between the browser and Magento has
+seen it. If that request went through a shared proxy or a browser other people use, rotate
+the key. Links the bar builds to outside tools, such as PageSpeed Insights and the Rich
+Results Test, never include the key.
 
 **The key must be at least 32 characters, or empty.** Anything shorter is refused when you
 save it and refused again when the configuration resolves, so writing one straight into the
