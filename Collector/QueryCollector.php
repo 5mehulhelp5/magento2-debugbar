@@ -104,10 +104,12 @@ class QueryCollector extends AbstractCollector
             $this->transactionCount++;
         }
 
+        $policy = $this->config->valuePolicy();
+
         $this->record([
             'type' => $type,
-            'sql' => $this->redactor->cleanSql($sql),
-            'bindings' => $this->redactor->cleanBindings($bindings, $this->config->valuePolicy()),
+            'sql' => $this->redactor->cleanSql($sql, $policy),
+            'bindings' => $this->redactor->cleanBindings($bindings, $policy),
             'duration_ms' => $durationMs,
             'slow' => $durationMs >= $this->config->slowQueryMs(),
             'callsite' => $this->callSites->resolve(),
