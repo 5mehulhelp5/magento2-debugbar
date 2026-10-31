@@ -67,7 +67,25 @@ class RedactorTest extends TestCase
             'card number' => ['cc_number'],
             'cvv' => ['cvv'],
             'iban' => ['iban'],
+            'email' => ['email'],
+            'customer email' => ['customer_email'],
+            'e-mail' => ['E-Mail'],
+            'e_mail' => ['e_mail'],
+            'phone' => ['phone'],
+            'telephone' => ['telephone'],
+            'dob' => ['dob'],
+            'birth date' => ['date_of_birth'],
         ];
+    }
+
+    #[Test]
+    public function itOverRedactsKeysThatOnlyContainAPersonalDataWord(): void
+    {
+        // Substring matching is the accepted cost: a template id named after email loses
+        // its value too, which is cheaper than missing a personal value.
+        $clean = $this->redactor->clean(['email_template_id' => 4]);
+
+        $this->assertSame(Redactor::REDACTED, $clean['email_template_id']);
     }
 
     #[Test]
@@ -182,4 +200,76 @@ class RedactorTest extends TestCase
         );
     }
 
+    #[Test]
+    #[DataProvider('sqlLiterals')]
+    public function itStripsSqlLiteralsAccordingToThePolicy(
+        string $sql,
+        string $full,
+        string $masked,
+        string $none
+    ): void {
+        $redactor = new Redactor();
+
+        $this->assertSame($full, $redactor->cleanSql($sql), 'full is the default');
+        $this->assertSame($full, $redactor->cleanSql($sql, Redactor::POLICY_FULL));
+        $this->assertSame($masked, $redactor->cleanSql($sql, Redactor::POLICY_MASKED));
+        $this->assertSame($none, $redactor->cleanSql($sql, Redactor::POLICY_NONE));
+    }
+
+    /**
+     * @return array<string, array{string, string, string, string}>
+     */
+    public static function sqlLiterals(): array
+    {
+        return [
+            'integer' => [
+                'SELECT * FROM t WHERE id = 42',
+                'SELECT * FROM t WHERE id = 42',
+                'SELECT * FROM t WHERE id = 42',
+                'SELECT * FROM t WHERE id = ?',
+            ],
+            'identifiers with digits' => [
+                'SELECT t0.value FROM catalog_product_entity_int AS t0 JOIN table1 ON t0.id = table1.id',
+                'SELECT t0.value FROM catalog_product_entity_int AS t0 JOIN table1 ON t0.id = table1.id',
+                'SELECT t0.value FROM catalog_product_entity_int AS t0 JOIN table1 ON t0.id = table1.id',
+                'SELECT t0.value FROM catalog_product_entity_int AS t0 JOIN table1 ON t0.id = table1.id',
+            ],
+            'backticked identifiers' => [
+                'SELECT `store_1`.`2fa` FROM `store_1` WHERE `store_1`.`store_id` = 1',
+                'SELECT `store_1`.`2fa` FROM `store_1` WHERE `store_1`.`store_id` = 1',
+                'SELECT `store_1`.`2fa` FROM `store_1` WHERE `store_1`.`store_id` = 1',
+                'SELECT `store_1`.`2fa` FROM `store_1` WHERE `store_1`.`store_id` = ?',
+            ],
+            'decimals and exponents' => [
+                'SELECT * FROM t WHERE price > 19.95 AND weight < .5 AND ratio = 1.5e-3',
+                'SELECT * FROM t WHERE price > 19.95 AND weight < .5 AND ratio = 1.5e-3',
+                'SELECT * FROM t WHERE price > 19.95 AND weight < .5 AND ratio = 1.5e-3',
+                'SELECT * FROM t WHERE price > ? AND weight < ? AND ratio = ?',
+            ],
+            'negative number keeps its minus' => [
+                'SELECT * FROM t WHERE balance = -12',
+                'SELECT * FROM t WHERE balance = -12',
+                'SELECT * FROM t WHERE balance = -12',
+                'SELECT * FROM t WHERE balance = -?',
+            ],
+            'hex' => [
+                "SELECT * FROM t WHERE hash = 0xDEADBEEF OR hash = X'CAFE'",
+                "SELECT * FROM t WHERE hash = 0xDEADBEEF OR hash = X'?'",
+                "SELECT * FROM t WHERE hash = ? OR hash = X'?'",
+                "SELECT * FROM t WHERE hash = ? OR hash = X'?'",
+            ],
+            'limit and offset' => [
+                'SELECT * FROM t LIMIT 20 OFFSET 40',
+                'SELECT * FROM t LIMIT 20 OFFSET 40',
+                'SELECT * FROM t LIMIT 20 OFFSET 40',
+                'SELECT * FROM t LIMIT ? OFFSET ?',
+            ],
+            'in list next to a string' => [
+                "SELECT * FROM t WHERE id IN (1, 2,3) AND sku = 'A-100'",
+                "SELECT * FROM t WHERE id IN (1, 2,3) AND sku = '?'",
+                "SELECT * FROM t WHERE id IN (1, 2,3) AND sku = '?'",
+                "SELECT * FROM t WHERE id IN (?, ?,?) AND sku = '?'",
+            ],
+        ];
+    }
 }

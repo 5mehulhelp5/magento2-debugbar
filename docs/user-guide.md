@@ -693,7 +693,14 @@ Siteation > Debug Bar**.
 
 **About `value_policy`.** Query bindings are positional, so a value a customer typed cannot
 be recognised by name the way a key can. `full` keeps them, which is what makes SQL readable.
-Set `masked` or `none` if the instance is shared.
+On any instance more than one person can reach, such as a shared staging or test server,
+`masked` is the better policy.
+
+The policy also reaches the SQL text itself. Quoted string literals become `'?'` under every
+policy. `masked` also replaces hex literals such as `0xCAFE` with `?`, because inline binary
+data is content, and keeps plain numbers so a query stays readable. `none` replaces every
+number as well, including `LIMIT` and `IN` lists. Digits inside identifiers, such as `t1` or a
+backticked `store_1`, are never touched, and repeated queries are still grouped as before.
 
 ## What it costs
 
