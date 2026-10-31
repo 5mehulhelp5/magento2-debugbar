@@ -350,6 +350,10 @@ Add a tool by implementing `Api\McpToolInterface` and registering it in the tool
 `etc/di.xml`. Shaping belongs in `Presentation\McpProfilePresenter`, which bounds every
 response by item count and byte budget and labels the payload as recorded data.
 
+**Every successful tool result carries the recorded data note.** A tool from another module
+that builds its own envelope gets the `recorded_data` line from `Mcp\Server`, after `status`,
+unless it set one itself. An error result gets none.
+
 **The presenter's envelope is built inside the byte budget**, so anything added to it is paid
 for out of the response rather than pushing it over.
 

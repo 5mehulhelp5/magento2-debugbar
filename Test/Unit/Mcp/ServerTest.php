@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Siteation\DebugBar\Api\McpToolInterface;
 use Siteation\DebugBar\Mcp\Server;
+use Siteation\DebugBar\Presentation\McpProfilePresenter;
 
 /**
  * handleLine() is a string in, string or null out, and it is the whole agent-facing half of
@@ -146,6 +147,43 @@ class ServerTest extends TestCase
         $this->assertFalse($response['result']['isError']);
         $this->assertSame('text', $response['result']['content'][0]['type']);
         $this->assertStringContainsString('"limit": 5', $response['result']['content'][0]['text']);
+    }
+
+    #[Test]
+    public function everyToolResultSaysItCarriesRecordedData(): void
+    {
+        // Another module's tool builds its own envelope and would otherwise reach the agent
+        // without the warning the module's own tools carry.
+        $response = $this->send('{"jsonrpc":"2.0","id":1,"method":"tools/call",'
+            . '"params":{"name":"a_tool","arguments":{"limit":5}}}');
+        $result = json_decode($response['result']['content'][0]['text'], true);
+
+        $this->assertSame(McpProfilePresenter::RECORDED_DATA_NOTE, $result['recorded_data']);
+        $this->assertSame(['status', 'recorded_data', 'limit'], array_keys($result));
+    }
+
+    #[Test]
+    public function aToolThatAlreadyCarriesTheNoteKeepsItsOwn(): void
+    {
+        $server = new Server([$this->tool(['status' => 'ok', 'recorded_data' => 'own words', 'n' => 1])]);
+
+        $response = $this->decode($server->handleLine(
+            '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"a_tool"}}'
+        ));
+
+        $this->assertSame('own words', json_decode($response['result']['content'][0]['text'], true)['recorded_data']);
+    }
+
+    #[Test]
+    public function anErrorResultCarriesNoNote(): void
+    {
+        $server = new Server([$this->tool(['status' => 'error', 'error' => 'no such profile'])]);
+
+        $response = $this->decode($server->handleLine(
+            '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"a_tool"}}'
+        ));
+
+        $this->assertArrayNotHasKey('recorded_data', json_decode($response['result']['content'][0]['text'], true));
     }
 
     #[Test]

@@ -6,6 +6,7 @@ namespace Siteation\DebugBar\Mcp;
 
 use JsonException;
 use Siteation\DebugBar\Api\McpToolInterface;
+use Siteation\DebugBar\Presentation\McpProfilePresenter;
 use Throwable;
 
 /**
@@ -192,9 +193,21 @@ class Server
             return $this->toolError($exception->getMessage());
         }
 
+        $failed = ($result['status'] ?? 'ok') === 'error';
+
+        // A tool another module adds builds its own envelope, and carries recorded data just
+        // the same, so the note is the server's to add rather than each tool's to remember.
+        if (!$failed && !isset($result['recorded_data'])) {
+            $result = [
+                ...array_intersect_key($result, ['response_version' => true, 'status' => true]),
+                'recorded_data' => McpProfilePresenter::RECORDED_DATA_NOTE,
+                ...$result,
+            ];
+        }
+
         return [
             'content' => [['type' => 'text', 'text' => $this->pretty($result)]],
-            'isError' => ($result['status'] ?? 'ok') === 'error',
+            'isError' => $failed,
         ];
     }
 
