@@ -234,7 +234,7 @@ class AccessKeyTest extends TestCase
             $cookieManager,
             $factory ?? $this->createStub(CookieMetadataFactory::class),
             $attempts ?? $this->attempts(),
-            new ClientAddress($request)
+            new ClientAddress($request, $config)
         );
     }
 }

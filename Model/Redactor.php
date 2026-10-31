@@ -24,11 +24,27 @@ class Redactor
     public const POLICY_NONE = 'none';
 
     /**
-     * Matched against array keys, case insensitively.
+     * Matched against array keys, case insensitively, anywhere in the key.
+     *
+     * Substring matching over-redacts on purpose: `email_template_id` loses its value along
+     * with `customer_email`. A missed personal value cannot be taken back out of a stored
+     * profile, a redacted template id costs a glance at the database.
      */
     private const SENSITIVE_KEY_PATTERN =
         '/(pass|pwd|secret|token|api[_-]?key|authorization|cookie|session|csrf|form_key'
-        . '|credit|cc[_-]?number|cvv|iban|ssn|private[_-]?key)/i';
+        . '|credit|cc[_-]?number|cvv|iban|ssn|private[_-]?key'
+        . '|e[_-]?mail|phone|dob|birth)/i';
+
+    /**
+     * Backticked identifiers and quoted strings match first, so a digit inside `store_1` or
+     * inside a literal is never seen as a number of its own. The lookarounds do the same for
+     * bare identifiers such as t1 and catalog_product_entity_int, as in
+     * QueryAnalyzer::normalizeUncached(). A leading minus is an operator to the tokenizer
+     * and stays where it was.
+     */
+    private const SQL_QUOTED = '`[^`]*`|\'(?:[^\'\\\\]|\\\\.)*\'|"(?:[^"\\\\]|\\\\.)*"';
+    private const SQL_HEX = '(?<![\w.`])0x[0-9a-f]+(?![\w.`])';
+    private const SQL_NUMBER = '(?<![\w.`])(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?(?![\w.`])';
 
     public function __construct(
         private readonly int $maxDepth = 5,
@@ -69,12 +85,29 @@ class Redactor
      * Both quoting styles, matching QueryAnalyzer::normalize(). Magento's adapter only ever
      * emits single quotes, so the second is for hand written SQL from a third party module
      * that chose the other one and would otherwise keep its values at every policy.
+     *
+     * Bare literals follow the policy the way bindings do. `masked` keeps numbers for the
+     * reason mask() does, but drops hex: a 0x literal is how binary data such as a hash or
+     * a packed UUID gets written inline, and that is content rather than shape. `none`
+     * promises no values, so every number goes too. A query loses nothing it needs to be
+     * grouped, because QueryAnalyzer replaces numbers with the same placeholder anyway.
      */
-    public function cleanSql(string $sql): string
+    public function cleanSql(string $sql, string $policy = self::POLICY_FULL): string
     {
-        $sql = preg_replace(
-            ['/\'(?:[^\'\\\\]|\\\\.)*\'/', '/"(?:[^"\\\\]|\\\\.)*"/'],
-            ["'?'", '"?"'],
+        $pattern = match ($policy) {
+            self::POLICY_NONE => self::SQL_QUOTED . '|' . self::SQL_HEX . '|' . self::SQL_NUMBER,
+            self::POLICY_MASKED => self::SQL_QUOTED . '|' . self::SQL_HEX,
+            default => self::SQL_QUOTED,
+        };
+
+        $sql = preg_replace_callback(
+            '/' . $pattern . '/i',
+            static fn (array $matches): string => match ($matches[0][0]) {
+                '`' => $matches[0],
+                "'" => "'?'",
+                '"' => '"?"',
+                default => '?',
+            },
             $sql
         ) ?? $sql;
 

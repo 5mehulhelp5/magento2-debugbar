@@ -35,8 +35,16 @@ Settings live under **Stores > Configuration > Siteation > Debug Bar**. They app
 whole installation: the decision to collect is made before the store is known, so a per
 website or per store value is ignored rather than half honoured.
 
-In developer mode that is all it takes. In any other mode the bar also needs an access key,
-which is covered under [Debugging a live site](#debugging-a-live-site).
+In developer mode that is all it takes on your own machine. Without a key or an IP allowlist
+the bar answers only loopback, private and link local addresses, which covers a browser on the
+same machine and the private network Docker, Warden or DDEV put in front of the store. A
+developer mode server that people reach over the internet, a shared staging box for example,
+needs an access key like any other. In any other mode the bar always needs one, which is
+covered under [Debugging a live site](#debugging-a-live-site).
+
+Profiles of admin requests are only readable from the admin, behind its login. The storefront
+history leaves them out, and asking the storefront for one by id answers as for a missing
+profile.
 
 ## Finding the request you mean
 
@@ -608,8 +616,20 @@ curl -H "X-Siteation-DebugBar-Key: <key>" https://your-store.test/
 open "https://your-store.test/?siteation_debugbar_key=<key>"
 ```
 
-The second swaps the key for an HttpOnly cookie lasting an hour, which is how long a profile
-lives, so the key leaves the address bar after one request.
+The first is the route for scripts, agents and API clients: the key travels in a header, so
+it never becomes part of a URL. The second is for a browser. It swaps the key for an HttpOnly
+cookie lasting an hour, which is how long a profile lives, and then redirects to the same
+address without the key, keeping every other parameter. The page you land on is profiled
+with the cookie, and the profile of the first request is still kept in the history. Only a plain GET is
+redirected: a POST, an AJAX call, GraphQL and REST keep their response, and if the cookie
+could not be set there is no redirect either, so you are never sent somewhere the bar cannot
+follow.
+
+The redirect clears the address bar, not the past. The first request carried the key, so it
+still leaves one line in the access log, and anything between the browser and Magento has
+seen it. If that request went through a shared proxy or a browser other people use, rotate
+the key. Links the bar builds to outside tools, such as PageSpeed Insights and the Rich
+Results Test, never include the key.
 
 **The key must be at least 32 characters, or empty.** Anything shorter is refused when you
 save it and refused again when the configuration resolves, so writing one straight into the
@@ -620,21 +640,33 @@ run, and "on for whoever holds the key" means nothing when the key is `x`.
 address stops being answered at all until fifteen minutes after the last one, so the
 endpoints cannot be used as an oracle. Only a request that presented something counts, so
 ordinary customer traffic never fills the bucket. Behind a load balancer every client shares
-one bucket, which is a reason to keep the key long rather than to lean on the counter.
+one bucket, unless the balancer is named in `trusted_proxies` (see below). Either way, keep
+the key long rather than lean on the counter.
 `cache:flush` clears it.
 
 Two more things follow from a key being set:
 
 - **Production and default mode are allowed, but only behind a key.** Developer mode is the
-  only one that runs keyless, because it is the only one that is not somebody's live site.
-  Default mode is what `MAGE_MODE` falls back to, so it is treated as live.
+  only one that runs keyless, because it is the only one that is not somebody's live site, and
+  even there only for local and private addresses. Default mode is what `MAGE_MODE` falls back
+  to, so it is treated as live.
 - **Any response carrying a bar or a profile id is marked `no-store`** and stripped of its
   `X-Magento-Tags`, so Varnish and any CDN refuse to keep it. A page with your bar in it is
   one developer's view of one request and must never reach a second person.
 
-An IP allowlist can be combined with the key. On its own it is not enough behind a proxy: the
-address the module trusts is `REMOTE_ADDR`, never a forwarded header, because an allowlist
-that trusts a client supplied header is not an allowlist.
+An IP allowlist can be combined with the key. By default the address the module trusts is
+`REMOTE_ADDR`, never a forwarded header, because an allowlist that trusts a client supplied
+header is not an allowlist. Behind a load balancer or reverse proxy that address is the
+proxy, so the allowlist could only name the proxy (which admits everyone behind it) and every
+client would share one lockout bucket.
+
+To fix both, list your own proxies in `trusted_proxies`. When a request arrives from one of
+them, `X-Forwarded-For` is read from the right: entries written by a trusted proxy are
+believed, and the first one that is not itself a trusted proxy is the client. Anything to the
+left of it is what the client sent and is ignored. An entry that is not an IP address stops
+the walk at the last proxy that could be believed. A request from any address not on the list
+is judged by `REMOTE_ADDR` alone, header or not. Addresses match exactly, as in `allowed_ips`,
+so list each proxy rather than a range.
 
 The key guards HTTP only. The report command and the MCP server read the profile files under
 `var/siteation_debugbar` directly, so anyone with a shell on the host, access to its backups,
@@ -659,6 +691,7 @@ Siteation > Debug Bar**.
 | `slow_query_ms` | `100` | Threshold behind `query.slow` |
 | `slow_request_ms` | `1000` | Threshold behind `request.slow` |
 | `allowed_ips` | empty | Comma separated; empty allows every address |
+| `trusted_proxies` | empty | Comma separated proxies whose `X-Forwarded-For` is believed; empty reads `REMOTE_ADDR` only |
 | `value_policy` | `full` | `full`, `masked` or `none` for captured values |
 | `access_key` | empty | 32 characters or more; required outside developer mode |
 | `editor` | empty | Editor for call site links |
@@ -667,7 +700,14 @@ Siteation > Debug Bar**.
 
 **About `value_policy`.** Query bindings are positional, so a value a customer typed cannot
 be recognised by name the way a key can. `full` keeps them, which is what makes SQL readable.
-Set `masked` or `none` if the instance is shared.
+On any instance more than one person can reach, such as a shared staging or test server,
+`masked` is the better policy.
+
+The policy also reaches the SQL text itself. Quoted string literals become `'?'` under every
+policy. `masked` also replaces hex literals such as `0xCAFE` with `?`, because inline binary
+data is content, and keeps plain numbers so a query stays readable. `none` replaces every
+number as well, including `LIMIT` and `IN` lists. Digits inside identifiers, such as `t1` or a
+backticked `store_1`, are never touched, and repeated queries are still grouped as before.
 
 ## What it costs
 

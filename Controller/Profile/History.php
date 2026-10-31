@@ -49,7 +49,9 @@ class History implements HttpGetActionInterface
         $profiles = [];
 
         foreach ($this->store->recent() as $profile) {
-            $profiles[] = $this->summary->for($profile);
+            if ($this->eligibility->allowsReadOf($profile)) {
+                $profiles[] = $this->summary->for($profile);
+            }
         }
 
         return $result->setData(['profiles' => $profiles, 'count' => count($profiles)]);

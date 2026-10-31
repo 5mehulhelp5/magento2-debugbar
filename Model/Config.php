@@ -29,6 +29,7 @@ class Config
     private const XML_PATH_SLOW_QUERY_MS = 'siteation_debugbar/general/slow_query_ms';
     private const XML_PATH_SLOW_REQUEST_MS = 'siteation_debugbar/general/slow_request_ms';
     private const XML_PATH_ALLOWED_IPS = 'siteation_debugbar/general/allowed_ips';
+    private const XML_PATH_TRUSTED_PROXIES = 'siteation_debugbar/general/trusted_proxies';
     private const XML_PATH_VALUE_POLICY = 'siteation_debugbar/general/value_policy';
     private const XML_PATH_AREAS = 'siteation_debugbar/general/areas';
     private const XML_PATH_SECTIONS = 'siteation_debugbar/general/sections';
@@ -63,6 +64,9 @@ class Config
 
     /** @var list<string> */
     private array $allowedIps = [];
+
+    /** @var list<string> */
+    private array $trustedProxies = [];
 
     private string $valuePolicy = Redactor::POLICY_FULL;
 
@@ -144,6 +148,21 @@ class Config
         $this->isEnabled();
 
         return $this->allowedIps;
+    }
+
+    /**
+     * The proxies whose X-Forwarded-For entries are believed. Empty, the default, means
+     * none are, and the address is the direct peer's.
+     *
+     * @see ClientAddress for how the header is walked.
+     *
+     * @return list<string>
+     */
+    public function trustedProxies(): array
+    {
+        $this->isEnabled();
+
+        return $this->trustedProxies;
     }
 
     /**
@@ -296,6 +315,7 @@ class Config
             self::DEFAULT_SLOW_REQUEST_MS
         );
         $this->allowedIps = $this->ipList($this->scopeConfig->getValue(self::XML_PATH_ALLOWED_IPS));
+        $this->trustedProxies = $this->ipList($this->scopeConfig->getValue(self::XML_PATH_TRUSTED_PROXIES));
         $this->valuePolicy = $this->policy($this->scopeConfig->getValue(self::XML_PATH_VALUE_POLICY));
         $this->areas = $this->csv($this->scopeConfig->getValue(self::XML_PATH_AREAS));
         $this->sections = $this->csv($this->scopeConfig->getValue(self::XML_PATH_SECTIONS));

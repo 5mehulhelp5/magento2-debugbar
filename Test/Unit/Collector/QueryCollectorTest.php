@@ -20,9 +20,14 @@ class QueryCollectorTest extends TestCase
 
     protected function setUp(): void
     {
+        $this->collector = $this->collectorWithPolicy(Redactor::POLICY_FULL);
+    }
+
+    private function collectorWithPolicy(string $policy): QueryCollector
+    {
         $config = $this->createStub(Config::class);
         $config->method('slowQueryMs')->willReturn(100.0);
-        $config->method('valuePolicy')->willReturn(Redactor::POLICY_FULL);
+        $config->method('valuePolicy')->willReturn($policy);
 
         $callSites = $this->createStub(CallSiteResolver::class);
         $callSites->method('resolve')->willReturn([]);
@@ -30,7 +35,7 @@ class QueryCollectorTest extends TestCase
         $clock = new Clock();
         $clock->start();
 
-        $this->collector = new QueryCollector(
+        return new QueryCollector(
             new Redactor(),
             $clock,
             $config,
@@ -124,4 +129,23 @@ class QueryCollectorTest extends TestCase
         $this->assertSame([2, 2, 1], $counts, 'A finding can say two repeated; only this says which.');
     }
 
+    #[Test]
+    public function itAppliesTheValuePolicyToTheSqlText(): void
+    {
+        $collector = $this->collectorWithPolicy(Redactor::POLICY_NONE);
+
+        foreach ([17, 23] as $id) {
+            $collector->markStart();
+            $collector->recordQuery(
+                LoggerInterface::TYPE_QUERY,
+                "SELECT * FROM t1 WHERE entity_id = $id AND hash = 0xCAFE",
+                []
+            );
+        }
+
+        $items = $collector->payload()['items'];
+
+        $this->assertSame('SELECT * FROM t1 WHERE entity_id = ? AND hash = ?', $items[0]['sql']);
+        $this->assertSame([2, 2], array_column($items, 'repeat_count'), 'Grouping survives the policy.');
+    }
 }

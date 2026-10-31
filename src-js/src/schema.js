@@ -7,6 +7,8 @@
  * crawler, so there is no one left to hide it from.
  */
 
+import { withoutAccessKey } from './format.js'
+
 /** A whole page's markup past this is cut, so one huge block cannot stall the panel. */
 const MAX_MARKUP = 200000
 
@@ -629,14 +631,15 @@ export function isPublicHost(url) {
 
 /**
  * Where to check this markup outside the bar. URL mode only for a host Google can reach;
- * otherwise the tool's own page, where the copied markup is pasted in.
+ * otherwise the tool's own page, where the copied markup is pasted in. Never with the
+ * access key, which would otherwise travel to Google with the address.
  *
  * @param {string} url
  * @returns {{public: boolean, tools: Array<{label: string, href: string}>}}
  */
 export function validatorLinks(url) {
   const reachable = isPublicHost(url)
-  const encoded = encodeURIComponent(url)
+  const encoded = encodeURIComponent(withoutAccessKey(url))
 
   return {
     public: reachable,

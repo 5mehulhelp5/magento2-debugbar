@@ -17,6 +17,8 @@
                 <slow_query_ms>100</slow_query_ms>
                 <slow_request_ms>1000</slow_request_ms>
                 <allowed_ips/>
+                <!-- Empty trusts no forwarded header, so the address is always the direct peer's. -->
+                <trusted_proxies/>
                 <value_policy>full</value_policy>
                 <!--
                     Empty is the developer machine, where there is nobody to keep out.

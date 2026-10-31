@@ -61,7 +61,8 @@ class View implements HttpGetActionInterface
 
         $profile = $this->store->get($id);
 
-        if ($profile === null) {
+        // The same answer as a missing id, so the storefront cannot tell an admin profile exists.
+        if ($profile === null || !$this->eligibility->allowsReadOf($profile)) {
             return $this->fail($result, 404, 'Profile not found or expired.');
         }
 

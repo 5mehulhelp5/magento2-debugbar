@@ -342,6 +342,13 @@ test('Google\'s tools get the URL only when they can reach it', () => {
   ])
 })
 
+test('Google\'s tools never get the access key with the URL', () => {
+  assert.deepEqual(validatorLinks('https://www.shop.nl/a.html?siteation_debugbar_key=secret&p=2').tools.map((tool) => tool.href), [
+    'https://search.google.com/test/rich-results?url=https%3A%2F%2Fwww.shop.nl%2Fa.html%3Fp%3D2',
+    'https://validator.schema.org/#url=https%3A%2F%2Fwww.shop.nl%2Fa.html%3Fp%3D2',
+  ])
+})
+
 test('the copied markup holds every block and every top level item, ready to paste', () => {
   const markup = markupOf(page(ld(PRODUCT) + '<div itemscope itemtype="https://schema.org/Organization"><span itemprop="name">Shop</span></div><p>not this</p>'))
 

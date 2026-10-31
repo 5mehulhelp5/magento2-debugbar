@@ -76,6 +76,82 @@ class GateTest extends TestCase
         $controller->execute();
     }
 
+    #[Test]
+    public function viewAnswersAProfileItMayNotReadAsMissing(): void
+    {
+        $request = $this->createStub(RequestInterface::class);
+        $request->method('getParam')->willReturn('11111111-1111-4111-8111-111111111111');
+
+        $store = $this->createStub(ProfileStore::class);
+        $store->method('get')->willReturn(['id' => 'admin']);
+
+        $controller = new View(
+            $request,
+            $this->refusingFactory(),
+            $this->rawFactory(),
+            $store,
+            $this->gateClosedToEveryProfile(),
+            $this->createStub(ProfileReport::class),
+            $this->createStub(ContributedSections::class)
+        );
+
+        $controller->execute();
+    }
+
+    #[Test]
+    public function historyLeavesOutProfilesItMayNotRead(): void
+    {
+        $store = $this->createStub(ProfileStore::class);
+        $store->method('recent')->willReturn([['id' => 'admin'], ['id' => 'storefront']]);
+
+        $eligibility = $this->createStub(RequestEligibility::class);
+        $eligibility->method('allowsRead')->willReturn(true);
+        $eligibility->method('allowsReadOf')->willReturnCallback(
+            static fn (array $profile): bool => $profile['id'] !== 'admin'
+        );
+
+        $summary = $this->createStub(ProfileSummary::class);
+        $summary->method('for')->willReturnCallback(static fn (array $profile): array => $profile);
+
+        $json = $this->createMock(Json::class);
+        $json->expects($this->once())->method('setData')
+            ->with(['profiles' => [['id' => 'storefront']], 'count' => 1])
+            ->willReturnSelf();
+        $factory = $this->createStub(JsonFactory::class);
+        $factory->method('create')->willReturn($json);
+
+        (new History($factory, $store, $summary, $eligibility))->execute();
+    }
+
+    #[Test]
+    public function compareAnswersAProfileItMayNotReadAsMissing(): void
+    {
+        $request = $this->createStub(RequestInterface::class);
+        $request->method('getParam')->willReturnMap([
+            ['baseline', '', '11111111-1111-4111-8111-111111111111'],
+            ['subject', '', '22222222-2222-4222-8222-222222222222'],
+        ]);
+
+        $store = $this->createStub(ProfileStore::class);
+        $store->method('get')->willReturn(['id' => 'admin']);
+
+        $comparer = $this->createMock(ProfileComparer::class);
+        $comparer->expects($this->never())->method('compare');
+
+        (new Compare($request, $this->refusingFactory(), $store, $comparer, $this->gateClosedToEveryProfile()))
+            ->execute();
+    }
+
+    /** Open to the request, closed to every profile it would hand out. */
+    private function gateClosedToEveryProfile(): RequestEligibility
+    {
+        $eligibility = $this->createStub(RequestEligibility::class);
+        $eligibility->method('allowsRead')->willReturn(true);
+        $eligibility->method('allowsReadOf')->willReturn(false);
+
+        return $eligibility;
+    }
+
     private function closedGate(): RequestEligibility
     {
         $eligibility = $this->createStub(RequestEligibility::class);
