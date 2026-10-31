@@ -189,6 +189,62 @@ class ProfileReportTest extends TestCase
         $this->assertStringNotContainsString('## SEO', $this->report()->render($profile));
     }
 
+    #[Test]
+    public function aBacktickInACapturedValueCannotEndItsCodeSpan(): void
+    {
+        $profile = $this->profile();
+        $profile['sections']['request']['summary']['action'] = 'cms_`index`_index';
+        $profile['findings'] = [[
+            'severity' => 'error',
+            'message' => 'The request threw Exception.',
+            'location' => '`evil`.php:12',
+        ]];
+
+        $markdown = $this->report()->render($profile);
+
+        $this->assertStringContainsString('action ``cms_`index`_index``,', $markdown);
+        $this->assertStringContainsString('  - Where: `` `evil`.php:12 ``', $markdown);
+    }
+
+    #[Test]
+    public function aFenceInsideAStatementCannotCloseTheBlockAroundIt(): void
+    {
+        $profile = $this->profile();
+        $profile['sections']['queries']['payload']['items'][0]['sql'] = "SELECT 1 /* ```\n# Owned */";
+
+        $markdown = $this->report()->render($profile);
+
+        $this->assertStringContainsString(
+            "   ````sql\n   SELECT 1 /* ``` # Owned */\n   ````\n",
+            $markdown
+        );
+    }
+
+    #[Test]
+    public function rawHtmlInCapturedTextIsWrittenAsTextNotMarkup(): void
+    {
+        $profile = $this->profile();
+        $profile['sections']['queries']['payload']['items'][0]['sql'] = 'SELECT \'<img src=x onerror=alert(1)>\'';
+        $profile['findings'] = [[
+            'severity' => 'error',
+            'message' => 'The request threw Exception.',
+            'why' => "Bad <script>alert(1)</script> & worse\n\n# Not a heading",
+        ]];
+
+        $markdown = $this->report()->render($profile);
+
+        $this->assertStringContainsString(
+            '  - Why: Bad &lt;script&gt;alert(1)&lt;/script&gt; &amp; worse # Not a heading',
+            $markdown
+        );
+        $this->assertStringNotContainsString('<script>', $markdown);
+        $this->assertStringContainsString(
+            "   ```sql\n   SELECT '<img src=x onerror=alert(1)>'\n   ```",
+            $markdown,
+            'a fenced block is never rendered as HTML, so the statement stays as it ran'
+        );
+    }
+
     private function report(): ProfileReport
     {
         $summary = new ProfileSummary();

@@ -194,6 +194,24 @@ test('a nested item is not also a top level one, and its properties stay its own
   assert.equal(entities[0].data.review.name, 'Great')
 })
 
+test('an itemprop named after an Object.prototype member is an ordinary property', () => {
+  const doc = page(`
+    <div itemscope itemtype="https://schema.org/Product">
+      <span itemprop="__proto__">polluted</span>
+      <span itemprop="constructor">Acme</span>
+      <span itemprop="toString">one</span><span itemprop="toString">two</span>
+    </div>`)
+  const { data } = microdata(doc).entities[0]
+
+  assert.equal(Object.getPrototypeOf(data), Object.prototype)
+  assert.equal(data.constructor, 'Acme')
+  assert.deepEqual(data.toString, ['one', 'two'])
+  assert.deepEqual(JSON.parse(JSON.stringify(data)), JSON.parse(
+    '{"@type":"Product","__proto__":"polluted","constructor":"Acme","toString":["one","two"]}'
+  ))
+  assert.equal({}.polluted, undefined)
+})
+
 test('the same product in JSON-LD and microdata is a duplicate', () => {
   const doc = page(ld(PRODUCT) + `
     <div itemscope itemtype="http://schema.org/Product">
