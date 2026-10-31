@@ -33,8 +33,16 @@ Settings live under **Stores > Configuration > Siteation > Debug Bar**. They app
 whole installation: the decision to collect is made before the store is known, so a per
 website or per store value is ignored rather than half honoured.
 
-In developer mode that is all it takes. In any other mode the bar also needs an access key,
-which is covered under [Debugging a live site](#debugging-a-live-site).
+In developer mode that is all it takes on your own machine. Without a key or an IP allowlist
+the bar answers only loopback, private and link local addresses, which covers a browser on the
+same machine and the private network Docker, Warden or DDEV put in front of the store. A
+developer mode server that people reach over the internet, a shared staging box for example,
+needs an access key like any other. In any other mode the bar always needs one, which is
+covered under [Debugging a live site](#debugging-a-live-site).
+
+Profiles of admin requests are only readable from the admin, behind its login. The storefront
+history leaves them out, and asking the storefront for one by id answers as for a missing
+profile.
 
 ## Finding the request you mean
 
@@ -624,8 +632,9 @@ one bucket, which is a reason to keep the key long rather than to lean on the co
 Two more things follow from a key being set:
 
 - **Production and default mode are allowed, but only behind a key.** Developer mode is the
-  only one that runs keyless, because it is the only one that is not somebody's live site.
-  Default mode is what `MAGE_MODE` falls back to, so it is treated as live.
+  only one that runs keyless, because it is the only one that is not somebody's live site, and
+  even there only for local and private addresses. Default mode is what `MAGE_MODE` falls back
+  to, so it is treated as live.
 - **Any response carrying a bar or a profile id is marked `no-store`** and stripped of its
   `X-Magento-Tags`, so Varnish and any CDN refuse to keep it. A page with your bar in it is
   one developer's view of one request and must never reach a second person.
